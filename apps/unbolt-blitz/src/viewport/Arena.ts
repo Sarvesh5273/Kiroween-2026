@@ -21,13 +21,19 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
-import type { Mesh, MeshPhysicalMaterial } from "three";
+import type { DirectionalLight, Mesh, MeshPhysicalMaterial } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { TrajectoryStep, Vec3 } from "@unboltkit/core";
 import type { Aabb } from "../game/blitzEngine";
 import type { PartRenderData } from "../protocol";
 import { ARENA_CONFIG } from "./arenaConfig";
-import { applyArenaEnvironment, createArenaEnvironment, createStudioLights } from "./environment";
+import {
+  applyArenaEnvironment,
+  createArenaEnvironment,
+  createStudioBackdrop,
+  createStudioLights,
+  fitKeyShadow,
+} from "./environment";
 import { EffectsSystem } from "./effects";
 import { ExitAnimator } from "./exitAnimations";
 import { frameBounds } from "./framing";
@@ -37,7 +43,7 @@ import { currentMotionPolicy, motionPolicy, REDUCED_MOTION_QUERY } from "./motio
 import type { MotionPolicy } from "./motion";
 import { buildPartMeshes } from "./partMeshes";
 import type { PartMeshSet } from "./partMeshes";
-import { createPedestal, lowestAabbY } from "./pedestal";
+import { createPedestal, lowestAabbY, pedestalLayout, pedestalShadowFocus, releasePedestal } from "./pedestal";
 import { isClick, Picker } from "./picking";
 import type { PointerSample } from "./picking";
 import { ResourceTracker } from "./resourceTracker";
@@ -91,6 +97,7 @@ export class Arena {
   private readonly resizeObserver: ResizeObserver;
   private readonly ndc = new Vector2();
 
+  private keyLight: DirectionalLight | null = null;
   private pedestal: Group | null = null;
   private meshSet: PartMeshSet | null = null;
   private partData = new Map<string, PartRenderData>();
@@ -142,14 +149,19 @@ export class Arena {
       renderer.toneMapping = ARENA_CONFIG.toneMapping;
       renderer.outputColorSpace = ARENA_CONFIG.outputColorSpace;
       renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio ?? 1, ARENA_CONFIG.maxPixelRatio));
+      renderer.shadowMap.enabled = ARENA_CONFIG.shadowsEnabled;
+      renderer.shadowMap.type = ARENA_CONFIG.shadowMapType;
 
-      this.scene.background = new Color(ARENA_CONFIG.backgroundColor);
+      // Warm-charcoal to obsidian studio vignette. Without a canvas the flat obsidian color stays.
+      const backdrop = createStudioBackdrop();
+      this.scene.background = backdrop !== null ? this.tracker.track(backdrop) : new Color(ARENA_CONFIG.backgroundColor);
       const environment = createArenaEnvironment(renderer);
       for (const item of environment.disposables) this.tracker.track(item);
       applyArenaEnvironment(this.scene, environment);
 
       const lights = createStudioLights();
-      this.scene.add(...lights.all);
+      this.keyLight = lights.key;
+      this.scene.add(...lights.all, lights.key.target);
       this.scene.add(this.partsGroup);
 
       this.camera = new PerspectiveCamera(ARENA_CONFIG.cameraFovDeg, 1, 0.01, 100);
@@ -226,8 +238,13 @@ export class Arena {
     }
 
     this.bounds = unionAabb(parts.map((part) => part.aabb));
-    this.pedestal = createPedestal(lowestAabbY(parts.map((part) => part.aabb)), this.tracker);
+    const lowestY = lowestAabbY(parts.map((part) => part.aabb));
+    this.pedestal = createPedestal(lowestY, this.tracker);
     this.scene.add(this.pedestal);
+    if (this.keyLight !== null) {
+      const focus = pedestalShadowFocus(this.bounds, pedestalLayout(lowestY).topY);
+      fitKeyShadow(this.keyLight, focus.center, focus.radius);
+    }
 
     this.currentEpoch = epoch;
     this.userMoved = false;
@@ -575,13 +592,7 @@ export class Arena {
     this.partData = new Map();
     if (this.pedestal !== null) {
       this.scene.remove(this.pedestal);
-      this.pedestal.traverse((object) => {
-        const mesh = object as Mesh;
-        if (mesh.isMesh) {
-          this.tracker.release(mesh.geometry);
-          this.tracker.release(mesh.material as MeshPhysicalMaterial);
-        }
-      });
+      releasePedestal(this.pedestal, this.tracker);
       this.pedestal = null;
     }
     if (this.hoveredPartId !== null) {

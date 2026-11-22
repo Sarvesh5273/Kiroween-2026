@@ -28,6 +28,9 @@ function newBestDetail(flags: { score: boolean; time: boolean; stars: boolean })
  * "Victory" or "Interlock Exposed!" with the final stats, the star rating, a NEW BEST badge
  * when a personal record fell, and the Next Stage, Replay and Choose level controls
  * (Req 13.9, 14.2, 14.5, 14.6, 14.7).
+ *
+ * The card is compact frosted obsidian with brass corner accents. The full-screen layer behind it
+ * only adds a light edge vignette, so the glowing disassembled or deadlocked artifact stays visible.
  */
 export function CompletionOverlay({
   store,
@@ -76,14 +79,22 @@ export function CompletionOverlay({
           </div>
         )}
         <dl className="bz-stats">
-          <dt className="bz-stats__label">Score</dt>
-          <dd className="bz-stats__value bz-num">{model.score}</dd>
-          <dt className="bz-stats__label">Time</dt>
-          <dd className="bz-stats__value bz-num">{model.elapsedText}</dd>
-          <dt className="bz-stats__label">Mistakes</dt>
-          <dd className="bz-stats__value bz-num">{model.mistakes}</dd>
-          <dt className="bz-stats__label">False alarms</dt>
-          <dd className="bz-stats__value bz-num">{model.falseAlarms}</dd>
+          <div className="bz-stats__item">
+            <dt className="bz-stats__label">Score</dt>
+            <dd className="bz-stats__value bz-num">{model.score}</dd>
+          </div>
+          <div className="bz-stats__item">
+            <dt className="bz-stats__label">Time</dt>
+            <dd className="bz-stats__value bz-num">{model.elapsedText}</dd>
+          </div>
+          <div className="bz-stats__item">
+            <dt className="bz-stats__label">Mistakes</dt>
+            <dd className="bz-stats__value bz-num">{model.mistakes}</dd>
+          </div>
+          <div className="bz-stats__item">
+            <dt className="bz-stats__label">False alarms</dt>
+            <dd className="bz-stats__value bz-num">{model.falseAlarms}</dd>
+          </div>
         </dl>
         <div className="bz-overlay__actions">
           {nextStage === null ? null : (

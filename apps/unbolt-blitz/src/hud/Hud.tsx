@@ -1,12 +1,13 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { outcome } from "../game/selectors";
 import type { GameStore } from "../game/store";
 import { campaignStore, hintSession, soundModule } from "../modules/registry";
 import type { BundledLevelId } from "../protocol";
 import { BlockerCallout } from "./BlockerCallout";
-import { CampaignButton, CampaignDrawer } from "./CampaignDrawer";
+import { CampaignDrawer } from "./CampaignDrawer";
 import { CompletionOverlay } from "./CompletionOverlay";
 import { Counters } from "./Counters";
+import { EdgeFlash } from "./EdgeFlash";
 import { HintBanner, HintButton } from "./HintControls";
 import { LevelSelector } from "./LevelSelector";
 import type { HudController } from "./LevelSelector";
@@ -35,13 +36,15 @@ export interface HudProps {
  * Floating HUD laid over the Arena. A hover, click, popup loop with bevelled plates:
  * no panel layout, manifest list or step timeline (Req 15.6).
  *
+ * The top-left corner holds one compact frosted control bar (active stage, Campaign, upload, sound)
+ * instead of a level list, so the left margin stays free and the assembly sits center-stage.
+ *
  * `.bz-hud` sets `pointer-events: none` and children inherit it. Elements that must
  * receive the pointer (name pill, popups, loading plate, completion overlay, live region)
  * are siblings of `.bz-hud`, not children, so they never inherit that value.
  */
 export function Hud({ store, controller, hover }: HudProps) {
   const state = useGameState(store);
-  const selectorRef = useRef<HTMLElement>(null);
   const [hiddenOverlayEpoch, setHiddenOverlayEpoch] = useState<number | null>(null);
 
   const epoch = state.screen.kind === "level" ? state.screen.loaded.epoch : null;
@@ -73,24 +76,32 @@ export function Hud({ store, controller, hover }: HudProps) {
     setDrawerOpen(false);
     controller.selectLevel(levelId);
   };
+  const toggleDrawer = useCallback(() => {
+    setDrawerOpen((open) => !open);
+  }, []);
+  const uploadCustom = () => {
+    setDrawerOpen(false);
+    controller.openFilePicker();
+  };
+  /** "Choose level" on the completion card hides the card and opens the stage picker. */
   const chooseLevel = () => {
     setHiddenOverlayEpoch(epoch);
-    selectorRef.current?.querySelector("button")?.focus();
+    setDrawerOpen(true);
   };
 
   return (
     <>
       <div className="bz-hud">
         <div className="bz-hud__top-left">
-          <LevelSelector store={store} controller={controller} rootRef={selectorRef} />
-          <div className="bz-chips">
-            <CampaignButton
+          <div className="bz-bar" role="group" aria-label="Workbench controls">
+            <LevelSelector
+              store={store}
+              controller={controller}
               campaign={campaignStore}
-              open={drawerOpen}
-              onToggle={() => {
-                setDrawerOpen((open) => !open);
-              }}
+              drawerOpen={drawerOpen}
+              onToggleDrawer={toggleDrawer}
             />
+            <span className="bz-bar__sep" aria-hidden="true" />
             <SoundToggle sound={soundModule} />
           </div>
         </div>
@@ -114,6 +125,7 @@ export function Hud({ store, controller, hover }: HudProps) {
           <TrapLever store={store} />
         </div>
       </div>
+      <EdgeFlash store={store} />
       <Popups store={store} />
       <NamePill store={store} hover={hover} />
       <LoadingPlate store={store} />
@@ -126,7 +138,13 @@ export function Hud({ store, controller, hover }: HudProps) {
         />
       )}
       {drawerOpen ? (
-        <CampaignDrawer campaign={campaignStore} state={state} onClose={closeDrawer} onLaunch={launchStage} />
+        <CampaignDrawer
+          campaign={campaignStore}
+          state={state}
+          onClose={closeDrawer}
+          onLaunch={launchStage}
+          onUpload={uploadCustom}
+        />
       ) : null}
       <LiveRegion store={store} />
     </>

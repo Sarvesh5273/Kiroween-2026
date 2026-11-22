@@ -36,6 +36,27 @@
   --glow-teal: rgba(45, 212, 191, 0.45);
   --glow-crimson: rgba(229, 72, 77, 0.55);
 
+  /* Frosted obsidian glass (control bar, hint and trap plates, completion card, campaign drawer).
+     Fills and borders only, never text. Text on glass is --text / --amber over a 0.78 obsidian fill. */
+  --glass-fill: rgba(16, 20, 29, 0.78);
+  --glass-fill-hi: rgba(34, 41, 56, 0.8);
+  --glass-fill-lo: rgba(15, 18, 27, 0.84);
+  --glass-blur: blur(12px) saturate(1.15);
+  --brass-bright: #F1C46B;
+  --brass-hairline: rgba(241, 196, 107, 0.62);
+  --brass-soft: rgba(217, 155, 56, 0.32);
+  --specular: rgba(255, 236, 190, 0.12);
+
+  /* Combo tiers (x1, x2-x3, x4-x6, x7-x8) */
+  --combo-amber: rgba(245, 185, 66, 0.5);
+  --combo-gold: rgba(255, 205, 96, 0.75);
+  --combo-spectral: rgba(45, 240, 214, 0.8);
+
+  /* HUD geometry. The top row is: control bar | stopwatch | score stack. */
+  --hud-side-w: 220px;
+  /* Half the widest stopwatch plate ("59:59.9" at 30px plus padding), so the bar never reaches it. */
+  --hud-stopwatch-half: 86px;
+
   /* Typography */
   --font-display: "Rockwell", "Roboto Slab", Georgia, serif;
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;

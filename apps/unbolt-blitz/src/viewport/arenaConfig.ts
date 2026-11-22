@@ -5,7 +5,7 @@
  * Arena class and the configuration test (task 13.5) both read these, so the
  * test can check the setup in Node without a GL context.
  */
-import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
+import { ACESFilmicToneMapping, PCFSoftShadowMap, SRGBColorSpace } from "three";
 
 /** Palette colors the Arena uses, as 0xRRGGBB. */
 export const ARENA_PALETTE = Object.freeze({
@@ -21,8 +21,35 @@ export const ARENA_TONE_MAPPING = ACESFilmicToneMapping;
 export const ARENA_OUTPUT_COLOR_SPACE = SRGBColorSpace;
 export const ARENA_MAX_PIXEL_RATIO = 2;
 
-/** Canvas and scene background: obsidian (Req 9.5). */
+/** Canvas and scene background: obsidian (Req 9.5). Also the fallback when the backdrop texture is skipped. */
 export const ARENA_BACKGROUND_COLOR = 0x0d0f14;
+
+/**
+ * Studio backdrop: a radial gradient from warm charcoal behind the turntable to obsidian at the
+ * edges, drawn once into an in-memory canvas and used as `scene.background`. The texture is stretched
+ * over the viewport, so the pool of light follows any aspect ratio. `ditherSeed` seeds the 1-level
+ * noise that hides banding in the dark ramp.
+ */
+export const STUDIO_BACKDROP = Object.freeze({
+  size: 1024,
+  center: "#2e2722",
+  mid: "#19181b",
+  edge: "#0d0f14",
+  /** Gradient center, as a fraction of the height from the top. */
+  centerY: 0.5,
+  /** Gradient radius as a fraction of the canvas size. */
+  radius: 0.74,
+  ditherSeed: 0x5eed,
+});
+
+/** Soft shadows (PCF soft) from the brass key light onto the turntable platter. */
+export const ARENA_SHADOWS_ENABLED = true;
+export const ARENA_SHADOW_MAP_TYPE = PCFSoftShadowMap;
+export const KEY_SHADOW_MAP_SIZE = 2048;
+export const KEY_SHADOW_BIAS = -0.0004;
+export const KEY_SHADOW_NORMAL_BIAS = 0.006;
+/** The orthographic shadow frustum is this much larger than the sphere it must cover. */
+export const KEY_SHADOW_FRUSTUM_MARGIN = 1.08;
 
 /** OrbitControls damping (Req 9.6). */
 export const ORBIT_ENABLE_DAMPING = true;
@@ -56,6 +83,8 @@ export const ENVIRONMENT_INTENSITY = 0.45;
 export const ARENA_CONFIG = Object.freeze({
   toneMapping: ARENA_TONE_MAPPING,
   outputColorSpace: ARENA_OUTPUT_COLOR_SPACE,
+  shadowsEnabled: ARENA_SHADOWS_ENABLED,
+  shadowMapType: ARENA_SHADOW_MAP_TYPE,
   maxPixelRatio: ARENA_MAX_PIXEL_RATIO,
   backgroundColor: ARENA_BACKGROUND_COLOR,
   enableDamping: ORBIT_ENABLE_DAMPING,

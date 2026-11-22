@@ -17,7 +17,7 @@ export function SoundToggle({ sound }: { sound: SoundModule }) {
       <span className="bz-chip__icon" aria-hidden="true">
         ♪
       </span>
-      <span>{muted ? "Muted (M)" : "Sound (M)"}</span>
+      <span className="bz-chip__label">{muted ? "Muted (M)" : "Sound (M)"}</span>
     </button>
   );
 }

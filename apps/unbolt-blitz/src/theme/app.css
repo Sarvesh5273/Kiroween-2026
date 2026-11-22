@@ -16,21 +16,23 @@
  *
  * HUD layout (Hud.tsx)
  *   .bz-hud                    Fixed overlay, pointer-events: none. Children opt in.
- *   .bz-hud__top-left          LevelSelector.
+ *   .bz-hud__top-left          Control bar (.bz-bar), one row, left of the stopwatch.
  *   .bz-hud__top-center        Stopwatch.
  *   .bz-hud__top-right         Column: ScoreCombo, ProgressBar, Counters.
  *   .bz-hud__bottom-left       OverBudgetNotice.
- *   .bz-hud__notices           BlockerCallout and HintBanner, top-center under the TIME plate.
+ *   .bz-hud__notices           BlockerCallout and HintBanner, top-center under the TIME plate. Its max
+ *                              width keeps the score stack clear on both sides.
  *   .bz-hud__bottom-center     Unused (kept for the narrow-screen rules).
- *   .bz-hud__bottom-right      TrapLever.
+ *   .bz-hud__bottom-right      Hint button and TrapLever, stretched to one width.
  *
- * LevelSelector
- *   .bz-levels                 Plate holding the list.
- *   .bz-levels__title          Heading text.
- *   .bz-levels__list           <ul>.
- *   .bz-levels__item           <button> per level.
- *   .bz-levels__item--active   Currently loaded level (also set aria-current="true").
- *   .bz-levels__item--upload   The "Custom .glb drop/upload" entry.
+ * Control bar (Hud.tsx, LevelSelector.tsx, CampaignDrawer.tsx, SoundToggle.tsx)
+ *   .bz-bar                    Frosted-obsidian capsule. Holds the nav and the sound chip.
+ *   .bz-bar__nav               <nav aria-label="Level selector">: stage pill, Campaign chip, upload icon.
+ *   .bz-bar__sep               Hairline divider.
+ *   .bz-stage-pill             Active stage ("Stage 1 · Haunted Clockwork Lockbox ▾"). Opens the drawer.
+ *   .bz-chip                   Campaign and Sound buttons. Below 1360px .bz-chip__long and .bz-chip__label
+ *                              are visually hidden and .bz-chip__short shows.
+ *   .bz-icon-button            Compact upload icon button.
  *
  * Stopwatch
  *   .bz-stopwatch              Plate.
@@ -43,9 +45,13 @@
  *   .bz-score__label           Small caption.
  *   .bz-score__value           Score digits.
  *   .bz-combo                  Combo badge (x1..x8).
+ *   .bz-combo--base            x1: brass border.
+ *   .bz-combo--amber           x2-x3: warm amber glow.
+ *   .bz-combo--gold            x4-x6: radiant golden halo.
+ *   .bz-combo--spectral        x7-x8: electric spectral teal halo.
  *   .bz-combo--pulse           Add on a combo change. Change the React key to replay it.
  *   .bz-combo--reset           Add on a reset to x1 (crimson flash).
- *   .bz-combo--max             Add at x8.
+ *   .bz-combo--max             Add at x8 (solid teal).
  *
  * ProgressBar
  *   .bz-progress               Plate.
@@ -64,6 +70,7 @@
  *
  * TrapLever
  *   .bz-lever                  <button>, "Flag Interlock Trap".
+ *   .bz-hint-button            The Hint (H) plate. Same frosted-obsidian and brass bevel as .bz-lever.
  *   .bz-lever__knob            Decorative knob span.
  *   .bz-lever__label           Text span.
  *   .bz-lever--shake           Add briefly after a false alarm.
@@ -94,15 +101,27 @@
  *   .bz-loading__text          "Loading <Level label>".
  *
  * CompletionOverlay
- *   .bz-overlay                Full-screen scrim, centers its plate.
- *   .bz-overlay__plate         The dialog plate.
+ *   .bz-overlay                Full-screen layer with a light edge vignette, centers its card.
+ *   .bz-overlay__plate         The dialog card: translucent obsidian glass, 12px blur, brass corners.
  *   .bz-overlay__title         Title.
  *   .bz-overlay__title--victory       "Victory" (teal).
  *   .bz-overlay__title--interlock     "Interlock Exposed!" (amber).
- *   .bz-stats                  <dl> grid of final stats.
+ *   .bz-stats                  <dl>, four tiles in a row (two by two below 720px).
+ *   .bz-stats__item            One tile: <dt> over <dd>.
  *   .bz-stats__label           <dt>.
  *   .bz-stats__value           <dd>.
  *   .bz-overlay__actions       Row of buttons.
+ *
+ * CampaignDrawer
+ *   .bz-drawer-scrim           Dim layer behind the drawer. A click closes it.
+ *   .bz-drawer                 Frosted-obsidian drawer with brass corner brackets.
+ *   .bz-stage                  One stage card. .bz-stage--active marks the loaded one.
+ *   .bz-badge--<difficulty>    Difficulty tag.
+ *   .bz-drawer__footer         Pinned below the stage list: .bz-upload ("Upload Custom .glb") and a hint.
+ *
+ * Feedback
+ *   .bz-edge-flash             Fixed, pointer-events: none rim flash. --crimson on blocked and false alarm,
+ *                              --teal on a removed part. Hidden under prefers-reduced-motion.
  *
  * Buttons (Replay, Choose level, Load Lockbox, Try another file, Dismiss)
  *   .bz-button                 Brass lever-style button.
@@ -204,11 +223,9 @@ button {
 .bz-score,
 .bz-progress,
 .bz-counters,
-.bz-levels,
 .bz-callout,
 .bz-budget,
 .bz-loading,
-.bz-overlay__plate,
 .bz-recovery__plate {
   --c: var(--chamfer);
   background: var(--plate);
@@ -238,7 +255,6 @@ button {
 .bz-score__label,
 .bz-progress__label,
 .bz-counter__label,
-.bz-levels__title,
 .bz-stats__label {
   margin: 0;
   color: var(--text-muted);
@@ -269,7 +285,13 @@ button {
   gap: 8px;
 }
 
-.bz-hud__top-left { top: var(--hud-gap); left: var(--hud-gap); align-items: flex-start; }
+.bz-hud__top-left {
+  top: var(--hud-gap);
+  left: var(--hud-gap);
+  align-items: flex-start;
+  /* The control bar is one row and stops one gap short of the centered stopwatch plate. */
+  max-width: calc(50vw - var(--hud-stopwatch-half) - 2 * var(--hud-gap));
+}
 .bz-hud__top-center { top: var(--hud-gap); left: 50%; transform: translateX(-50%); align-items: center; }
 .bz-hud__top-right { top: var(--hud-gap); right: var(--hud-gap); align-items: flex-end; }
 .bz-hud__bottom-left {
@@ -286,18 +308,21 @@ button {
   align-items: center;
   max-width: min(520px, calc(100vw - 2 * var(--hud-gap)));
 }
-.bz-hud__bottom-right { bottom: var(--hud-gap); right: var(--hud-gap); align-items: flex-end; }
-/* Blocker callout and hint banner: top-center directly below the TIME plate. Clear of the
-   top-left chips, the top-right score stack and the bottom-right Hint and trap lever. */
+.bz-hud__bottom-right { bottom: var(--hud-gap); right: var(--hud-gap); align-items: stretch; }
+/* Blocker callout and hint banner: top-center, 10px below the TIME plate (which ends near y = 86).
+   The banner is centered, so its width is limited the same on both sides: each side keeps the score
+   stack (--hud-side-w), the screen margin and one more gap clear. That keeps it off the score stack
+   from 850px up (346px wide at 850px, the full 520px from 1024px), and the control bar sits above it. */
 .bz-hud__notices {
   position: absolute;
-  top: 84px;
+  top: 96px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: min(520px, calc(100vw - 440px));
+  width: max-content;
+  max-width: min(520px, calc(100vw - 2 * (var(--hud-side-w) + 2 * var(--hud-gap))));
 }
 .bz-hud__notices > * + * {
   margin-top: 8px;
@@ -305,63 +330,13 @@ button {
 .bz-hud__notices .bz-callout,
 .bz-hud__notices .bz-hint-banner {
   max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 /* Interactive HUD controls opt back in to pointer events. */
-.bz-levels,
 .bz-lever,
 .bz-budget__dismiss {
   pointer-events: auto;
-}
-
-/* ---------- Level selector ---------- */
-
-.bz-levels {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 200px;
-}
-
-.bz-levels__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.bz-levels__item {
-  display: block;
-  width: 100%;
-  padding: 6px 10px;
-  text-align: left;
-  background: transparent;
-  border: 1px solid transparent;
-  border-left: 3px solid var(--brass-dark);
-  color: var(--text);
-  cursor: pointer;
-  transition: background var(--dur-fast) linear, border-color var(--dur-fast) linear, color var(--dur-fast) linear;
-}
-
-.bz-levels__item:hover {
-  background: rgba(217, 155, 56, 0.12);
-  border-left-color: var(--brass);
-  color: var(--amber);
-}
-
-.bz-levels__item--active,
-.bz-levels__item[aria-current="true"] {
-  background: rgba(245, 185, 66, 0.14);
-  border-left-color: var(--amber);
-  color: var(--amber);
-}
-
-.bz-levels__item--upload {
-  margin-top: 4px;
-  border-top: 1px dashed var(--brass-dark);
-  color: var(--brass);
 }
 
 /* ---------- Stopwatch ---------- */
@@ -416,11 +391,87 @@ button {
   transform-origin: center;
 }
 
+/* Escalating tiers. Glows stay within about 12px of the badge, so the score plate's clip-path
+   does not cut them. The tier is a data-tier attribute and a class: x1 base, x2-x3 amber,
+   x4-x6 gold, x7-x8 spectral. The number is always printed in the badge as well. */
+.bz-combo {
+  position: relative;
+}
+
+.bz-combo--base {
+  border-color: var(--brass);
+  box-shadow: inset 0 0 0 1px rgba(255, 236, 190, 0.08);
+}
+
+.bz-combo--amber {
+  color: var(--amber);
+  border-color: var(--amber);
+  box-shadow:
+    0 0 8px 1px var(--combo-amber),
+    inset 0 0 8px rgba(245, 185, 66, 0.22);
+}
+
+.bz-combo--gold {
+  color: #ffe29a;
+  border-color: #ffd36b;
+  background: radial-gradient(ellipse at 50% 28%, rgba(255, 205, 96, 0.3), var(--obsidian) 74%);
+  box-shadow:
+    0 0 9px 2px var(--combo-gold),
+    inset 0 0 10px rgba(255, 205, 96, 0.35);
+  text-shadow: 0 0 8px rgba(255, 205, 96, 0.8);
+}
+
+.bz-combo--spectral {
+  color: #b6fff3;
+  border-color: #5effe4;
+  background: radial-gradient(ellipse at 50% 28%, rgba(45, 240, 214, 0.3), var(--obsidian) 74%);
+  box-shadow:
+    0 0 9px 2px var(--combo-spectral),
+    inset 0 0 12px rgba(45, 240, 214, 0.4);
+  text-shadow: 0 0 8px rgba(94, 255, 228, 0.9);
+}
+
+/* Radiant halo layer: a soft ring that breathes around the gold and spectral badges. */
+.bz-combo--gold::after,
+.bz-combo--spectral::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  pointer-events: none;
+  animation: bz-halo-breathe 2.4s ease-in-out infinite;
+}
+
+.bz-combo--gold::after {
+  box-shadow: 0 0 9px 2px rgba(255, 205, 96, 0.55);
+}
+
+.bz-combo--spectral::after {
+  box-shadow: 0 0 9px 2px rgba(45, 240, 214, 0.6);
+  animation-duration: 1.6s;
+}
+
+/* Spectral only: a thin electric ring whose hue drifts inside the teal range. */
+.bz-combo--spectral::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  padding: 2px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: conic-gradient(from 200deg, #2df0d6, #8affef, #3fb8ff, #2df0d6);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: bz-spectral-drift 3s ease-in-out infinite;
+}
+
+/* x8: the badge fills solid teal. */
 .bz-combo--max {
   color: var(--obsidian);
-  background: var(--amber);
-  border-color: var(--amber);
-  box-shadow: 0 0 12px var(--glow-brass);
+  background: linear-gradient(180deg, #a8fff2 0%, #2de0c8 100%);
+  border-color: #d6fff9;
+  text-shadow: none;
 }
 
 .bz-combo--pulse {
@@ -543,7 +594,6 @@ button {
 
 .bz-lever:focus-visible,
 .bz-button:focus-visible,
-.bz-levels__item:focus-visible,
 .bz-budget__dismiss:focus-visible {
   outline: 2px solid var(--teal);
   outline-offset: -4px;
@@ -767,11 +817,14 @@ button {
   background: var(--scrim);
 }
 
-/* Lighter than the recovery scrim, so the glowing deadlock cycle stays visible behind the plate. */
+/* Completion layer: no scrim, only a light edge vignette. The card is the only thing that frosts the
+   scene, so the glowing disassembled or deadlocked artifact stays visible around and behind it.
+   This layer must not animate its opacity: a parent with opacity below 1 would stop the card's
+   backdrop-filter from seeing the canvas until the animation ended. Only the card animates. */
 .bz-overlay {
-  background: rgba(13, 15, 20, 0.56);
+  background: radial-gradient(ellipse at 50% 46%, rgba(13, 15, 20, 0) 40%, rgba(13, 15, 20, 0.32) 100%);
 }
-.bz-overlay__plate,
+
 .bz-recovery__plate {
   --c: 18px;
   width: min(520px, 100%);
@@ -788,6 +841,31 @@ button {
     inset 0 0 0 5px var(--brass);
 }
 
+/* Frosted-obsidian card. Its brass corner brackets (::before) are shared with the drawer in Part 2. */
+.bz-overlay__plate {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 22px 26px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-radius: 4px;
+  /* Same values as --glass-fill and --glass-blur, written out: this is the card the player reads over the scene. */
+  background:
+    linear-gradient(180deg, var(--specular), rgba(255, 236, 190, 0) 38%),
+    rgba(16, 20, 29, 0.78);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  backdrop-filter: blur(12px) saturate(1.15);
+  color: var(--text);
+  box-shadow:
+    inset 0 0 0 1px var(--brass-soft),
+    inset 0 1px 0 rgba(255, 236, 190, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 28px 64px rgba(0, 0, 0, 0.55);
+  animation: bz-card-in 260ms var(--ease-out);
+}
+
+
 .bz-overlay__title,
 .bz-recovery__title {
   margin: 0;
@@ -798,8 +876,14 @@ button {
   color: var(--amber);
 }
 
-.bz-overlay__title--victory { color: var(--teal); }
-.bz-overlay__title--interlock { color: var(--amber); }
+.bz-overlay__title {
+  font-size: 24px;
+  letter-spacing: 0.14em;
+  text-align: center;
+}
+
+.bz-overlay__title--victory { color: var(--teal); text-shadow: 0 0 18px rgba(45, 212, 191, 0.45); }
+.bz-overlay__title--interlock { color: var(--amber); text-shadow: 0 0 18px rgba(245, 185, 66, 0.4); }
 
 .bz-recovery__body {
   margin: 0;
@@ -821,9 +905,21 @@ button {
 
 .bz-stats {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
   margin: 0;
+}
+
+.bz-stats__item {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 8px 6px 9px;
+  text-align: center;
+  background: rgba(7, 8, 11, 0.42);
+  border: 1px solid rgba(217, 155, 56, 0.16);
+  border-radius: 6px;
 }
 
 .bz-stats__label,
@@ -831,11 +927,16 @@ button {
   margin: 0;
 }
 
+.bz-stats__item .bz-stats__label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
 .bz-stats__value {
   color: var(--text);
   font-family: var(--font-display);
-  font-size: 20px;
-  text-align: right;
+  font-size: 18px;
+  text-align: center;
 }
 
 .bz-overlay__actions,
@@ -845,11 +946,33 @@ button {
   gap: 12px;
 }
 
+.bz-overlay__actions {
+  gap: 8px;
+}
+
+.bz-overlay__actions .bz-button {
+  flex: 1 1 auto;
+  padding: 10px 12px;
+  font-size: 12px;
+  letter-spacing: 0.07em;
+}
+
 /* ---------- Narrow screens ---------- */
 
 @media (max-width: 720px) {
+  /* The control bar takes the width left of the score stack. */
+  .bz-hud__top-left {
+    max-width: calc(100vw - var(--hud-side-w) - 3 * var(--hud-gap));
+  }
+
   .bz-hud__top-center {
     top: calc(var(--hud-gap) + 120px);
+  }
+
+  /* Below the score stack (it ends near y = 226), full width. */
+  .bz-hud__notices {
+    top: 240px;
+    max-width: calc(100vw - 2 * var(--hud-gap));
   }
 
   .bz-hud__bottom-left {
@@ -865,6 +988,10 @@ button {
   .bz-recovery__plate {
     padding: 20px;
   }
+
+  .bz-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* ---------- Keyframes ---------- */
@@ -878,6 +1005,35 @@ button {
 @keyframes bz-combo-flash {
   0% { color: var(--crimson-text); border-color: var(--crimson); box-shadow: 0 0 16px 4px var(--glow-crimson); transform: scale(0.9); }
   100% { color: var(--amber); border-color: var(--brass); box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+}
+
+@keyframes bz-halo-breathe {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+@keyframes bz-spectral-drift {
+  0%, 100% { filter: hue-rotate(-18deg) brightness(0.95); }
+  50% { filter: hue-rotate(22deg) brightness(1.2); }
+}
+
+@keyframes bz-card-in {
+  0% { opacity: 0; transform: translateY(10px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bz-edge-crimson {
+  0% { opacity: 0; }
+  16% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes bz-edge-teal {
+  0% { opacity: 0; }
+  22% { opacity: 0.85; }
+  48% { opacity: 0.45; }
+  66% { opacity: 0.7; }
+  100% { opacity: 0; }
 }
 
 @keyframes bz-shake {
@@ -918,7 +1074,11 @@ button {
   .bz-lever--shake,
   .bz-callout,
   .bz-loading__gear,
-  .bz-loading__gear--small {
+  .bz-loading__gear--small,
+  .bz-combo--gold::after,
+  .bz-combo--spectral::after,
+  .bz-combo--spectral::before,
+  .bz-overlay__plate {
     animation: none;
   }
 
@@ -935,7 +1095,6 @@ button {
   }
 
   .bz-progress__fill,
-  .bz-levels__item,
   .bz-lever,
   .bz-button {
     transition: none;
@@ -948,59 +1107,142 @@ button {
 }
 
 /* ======================================================================
-   Part 2: hint, sound, campaign, stars
+   Part 2: control bar, hint, sound, campaign, stars
+   Frosted-obsidian glass with machined-brass hairlines. These pieces use rounded corners, which
+   keeps the bevel lines and outer glows intact (clip-path would cut both). The chamfered plates
+   above stay as they are for the gameplay readouts.
    ====================================================================== */
 
 /* Interactive controls opt back in to pointer events inside `.bz-hud`. */
-.bz-chips,
-.bz-chip,
+.bz-bar,
 .bz-hint-button {
   pointer-events: auto;
 }
 
-/* ---------- Top-left chips (campaign, sound) ---------- */
-.bz-chips {
+/* ---------- Top-left control bar (stage pill, campaign, upload, sound) ---------- */
+.bz-bar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, var(--specular), rgba(255, 236, 190, 0) 55%),
+    var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 0 0 1px var(--brass-soft),
+    inset 0 1px 0 rgba(255, 236, 190, 0.22),
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 8px 24px rgba(0, 0, 0, 0.45);
 }
-.bz-chip {
-  --c: var(--chamfer-small);
-  display: inline-flex;
+.bz-bar__nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.bz-bar__sep {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 3px;
+  background: linear-gradient(180deg, transparent, var(--brass-soft), transparent);
+}
+
+.bz-stage-pill {
+  display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 7px 10px 7px 12px;
   border: 0;
-  background: var(--plate);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(217, 155, 56, 0.22), rgba(217, 155, 56, 0.08));
+  box-shadow:
+    inset 0 0 0 1px rgba(241, 196, 107, 0.42),
+    inset 0 1px 0 rgba(255, 236, 190, 0.18);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-fast) linear, box-shadow var(--dur-fast) linear;
+}
+.bz-stage-pill__lead {
+  flex: none;
+  color: var(--amber);
+  font-weight: 700;
+}
+.bz-stage-pill__dot {
+  flex: none;
+  color: var(--brass);
+}
+.bz-stage-pill__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bz-stage-pill__caret {
+  flex: none;
+  color: var(--brass-bright);
+  font-size: 11px;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.bz-stage-pill:hover,
+.bz-stage-pill[aria-expanded="true"] {
+  background: linear-gradient(180deg, rgba(217, 155, 56, 0.34), rgba(217, 155, 56, 0.14));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 223, 146, 0.75),
+    inset 0 1px 0 rgba(255, 236, 190, 0.26),
+    0 0 14px rgba(217, 155, 56, 0.22);
+}
+.bz-stage-pill[aria-expanded="true"] .bz-stage-pill__caret {
+  transform: rotate(180deg);
+}
+
+.bz-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
   color: var(--amber);
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
-  clip-path: polygon(
-    var(--c) 0,
-    100% 0,
-    100% calc(100% - var(--c)),
-    calc(100% - var(--c)) 100%,
-    0 100%,
-    0 var(--c)
-  );
-  box-shadow:
-    inset 0 0 0 1px var(--brass-dark),
-    inset 1px 1px 0 var(--plate-hi),
-    inset -1px -1px 0 var(--plate-lo);
-  transition: background var(--dur-fast) linear, color var(--dur-fast) linear;
+  transition: background var(--dur-fast) linear, color var(--dur-fast) linear, box-shadow var(--dur-fast) linear;
 }
 .bz-chip:hover {
-  background: #1d2330;
+  background: rgba(217, 155, 56, 0.16);
   color: var(--text);
 }
-.bz-chip:focus-visible,
-.bz-drawer .bz-button:focus-visible {
-  outline: 2px solid var(--teal);
-  outline-offset: -3px;
+.bz-chip:active {
+  background: rgba(217, 155, 56, 0.26);
+}
+.bz-chip[aria-expanded="true"] {
+  background: rgba(217, 155, 56, 0.18);
+  box-shadow: inset 0 0 0 1px var(--brass-soft);
+}
+.bz-chip__icon {
+  font-size: 15px;
+  line-height: 1;
+}
+.bz-chip__star {
+  color: var(--amber);
+  text-shadow: 0 0 8px var(--glow-brass);
 }
 .bz-chip--muted {
   color: var(--text-muted);
@@ -1008,21 +1250,161 @@ button {
 .bz-chip--muted .bz-chip__icon {
   text-decoration: line-through;
 }
+.bz-chip__short {
+  display: none;
+}
 
-/* ---------- Hint button and banner ---------- */
+.bz-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--brass-bright);
+  cursor: pointer;
+  transition: background var(--dur-fast) linear, color var(--dur-fast) linear, transform var(--dur-fast) var(--ease-out);
+}
+.bz-icon-button:hover {
+  background: rgba(217, 155, 56, 0.16);
+  color: var(--amber);
+}
+.bz-icon-button:active {
+  background: rgba(217, 155, 56, 0.26);
+  transform: translateY(1px);
+}
+.bz-icon {
+  display: block;
+}
+
+.bz-stage-pill:focus-visible,
+.bz-chip:focus-visible,
+.bz-icon-button:focus-visible,
+.bz-upload:focus-visible,
+.bz-drawer .bz-button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+}
+
+/* Below 1360px the stopwatch leaves less than 560px for the bar, so the Campaign and Sound labels
+   shrink to "★ X/15" and the note icon. The full text stays in the accessible name. */
+@media (max-width: 1359px) {
+  .bz-chip__long,
+  .bz-chip__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .bz-chip__short {
+    display: inline;
+  }
+  .bz-chip {
+    padding: 7px 8px;
+  }
+}
+
+/* ---------- Hint and trap plates (bottom right) ---------- */
+/* Frosted obsidian with a three-line machined-brass bevel: bright hairline, dark groove, brass lip. */
+.bz-hint-button,
+.bz-lever {
+  clip-path: none;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, var(--specular), rgba(255, 236, 190, 0) 46%),
+    linear-gradient(180deg, var(--glass-fill-hi), var(--glass-fill-lo));
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  color: var(--amber);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+  box-shadow:
+    inset 0 0 0 1px var(--brass-hairline),
+    inset 0 0 0 2px rgba(7, 8, 11, 0.75),
+    inset 0 0 0 3px rgba(138, 95, 28, 0.6),
+    0 10px 22px rgba(0, 0, 0, 0.5);
+  transition:
+    transform 140ms var(--ease-out),
+    box-shadow 160ms var(--ease-out),
+    background 160ms linear,
+    color 140ms linear;
+}
 .bz-hint-button {
-  padding: 10px 18px;
   font-size: 13px;
+}
+.bz-lever {
+  /* A thin crimson ember along the lower lip marks the lever as the risky action. */
+  box-shadow:
+    inset 0 0 0 1px var(--brass-hairline),
+    inset 0 0 0 2px rgba(7, 8, 11, 0.75),
+    inset 0 0 0 3px rgba(138, 95, 28, 0.6),
+    inset 0 -12px 16px -10px rgba(229, 72, 77, 0.34),
+    0 10px 22px rgba(0, 0, 0, 0.5);
+}
+.bz-hint-button:hover:not(:disabled),
+.bz-lever:hover:not(:disabled) {
+  filter: none;
+  color: #ffe2a0;
+  transform: translateY(-1px);
+  background:
+    linear-gradient(180deg, rgba(255, 236, 190, 0.18), rgba(255, 236, 190, 0.02) 46%),
+    linear-gradient(180deg, rgba(46, 55, 74, 0.84), rgba(18, 22, 32, 0.88));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 223, 146, 0.95),
+    inset 0 0 0 2px rgba(7, 8, 11, 0.75),
+    inset 0 0 0 3px rgba(176, 124, 38, 0.8),
+    0 14px 28px rgba(0, 0, 0, 0.55),
+    0 0 18px rgba(217, 155, 56, 0.3);
+}
+.bz-lever:hover:not(:disabled) {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 223, 146, 0.95),
+    inset 0 0 0 2px rgba(7, 8, 11, 0.75),
+    inset 0 0 0 3px rgba(176, 124, 38, 0.8),
+    inset 0 -12px 16px -10px rgba(229, 72, 77, 0.5),
+    0 14px 28px rgba(0, 0, 0, 0.55),
+    0 0 18px rgba(217, 155, 56, 0.3);
+}
+.bz-hint-button:active:not(:disabled),
+.bz-lever:active:not(:disabled) {
+  filter: none;
+  transform: translateY(1px);
+  background: linear-gradient(180deg, rgba(10, 12, 18, 0.9), rgba(22, 27, 38, 0.86));
+  box-shadow:
+    inset 0 0 0 1px rgba(217, 155, 56, 0.75),
+    inset 0 0 0 2px rgba(7, 8, 11, 0.85),
+    inset 0 6px 12px rgba(0, 0, 0, 0.7),
+    0 2px 6px rgba(0, 0, 0, 0.5);
 }
 .bz-hint-button__count {
   min-width: 20px;
   padding: 1px 6px;
+  border: 1px solid var(--brass-soft);
   border-radius: 10px;
   background: var(--obsidian);
   color: var(--amber);
   font-size: 12px;
   text-align: center;
 }
+.bz-lever__knob {
+  transition: transform 140ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+.bz-lever:hover:not(:disabled) .bz-lever__knob {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45), 0 0 14px var(--glow-crimson);
+}
+
+/* ---------- Hint banner ---------- */
 .bz-hint-banner {
   --c: var(--chamfer);
   max-width: 100%;
@@ -1068,7 +1450,7 @@ button {
   text-align: center;
 }
 
-/* ---------- Stars, badges, rating ---------- */
+/* ---------- Stars, tags, rating ---------- */
 .bz-stars {
   display: inline-flex;
   gap: 4px;
@@ -1076,19 +1458,22 @@ button {
 }
 .bz-stars--sm { font-size: 15px; }
 .bz-stars--md { font-size: 20px; }
-.bz-stars--lg { font-size: 44px; gap: 10px; }
+.bz-stars--lg { font-size: 36px; gap: 8px; }
+/* Earned stars glow gold: a tight core and a wide halo. */
 .bz-star--on {
   color: var(--amber);
-  text-shadow: 0 0 10px var(--glow-brass);
+  text-shadow:
+    0 0 6px rgba(245, 185, 66, 0.85),
+    0 0 16px rgba(245, 185, 66, 0.45);
 }
 .bz-star--off {
-  color: var(--plate-hi);
+  color: #3a4356;
 }
 .bz-rating {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 .bz-rating__best {
   display: flex;
@@ -1102,29 +1487,51 @@ button {
   font-size: 13px;
   text-align: center;
 }
+/* Difficulty tags: a crisp 1px outline and a faint tint of the tag color. */
 .bz-badge {
   display: inline-block;
-  padding: 2px 8px;
+  padding: 1px 7px;
   border: 1px solid var(--brass-dark);
-  background: var(--obsidian);
+  border-radius: 4px;
+  background: rgba(7, 8, 11, 0.55);
   color: var(--brass);
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  line-height: 1.6;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   vertical-align: middle;
 }
-.bz-badge--apprentice { color: var(--teal); border-color: var(--teal); }
-.bz-badge--journeyman { color: var(--amber); border-color: var(--amber); }
-.bz-badge--deadlock-inspection { color: var(--crimson-text); border-color: var(--crimson); }
-.bz-badge--grandmaster-blitz { color: var(--obsidian); background: var(--brass); border-color: var(--amber); }
+.bz-badge--apprentice {
+  color: var(--teal);
+  border-color: rgba(45, 212, 191, 0.7);
+  background: rgba(45, 212, 191, 0.12);
+}
+.bz-badge--journeyman {
+  color: var(--amber);
+  border-color: rgba(245, 185, 66, 0.7);
+  background: rgba(245, 185, 66, 0.12);
+}
+.bz-badge--deadlock-inspection {
+  color: var(--crimson-text);
+  border-color: rgba(229, 72, 77, 0.8);
+  background: rgba(229, 72, 77, 0.14);
+}
+.bz-badge--grandmaster-blitz {
+  color: #1a1206;
+  background: linear-gradient(180deg, #ffd98a, var(--brass));
+  border-color: #ffe2a8;
+  box-shadow: 0 0 10px rgba(217, 155, 56, 0.4);
+}
 .bz-badge--best {
   padding: 5px 14px;
   border: 0;
+  border-radius: 6px;
   background: linear-gradient(180deg, var(--amber) 0%, var(--brass) 55%, var(--brass-dark) 100%);
   color: var(--obsidian);
   font-size: 15px;
+  line-height: 1.4;
   box-shadow: 0 0 14px var(--glow-brass), inset 0 2px 0 rgba(255, 255, 255, 0.4);
   animation: bz-combo-pulse 900ms var(--ease-out) 1;
 }
@@ -1134,7 +1541,7 @@ button {
   position: fixed;
   inset: 0;
   z-index: 24;
-  background: rgba(13, 15, 20, 0.5);
+  background: rgba(13, 15, 20, 0.4);
   animation: bz-scrim-in 180ms linear;
 }
 .bz-drawer {
@@ -1148,18 +1555,43 @@ button {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  overflow-y: auto;
-  background: var(--plate);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, var(--specular), rgba(255, 236, 190, 0) 22%),
+    rgba(16, 20, 29, 0.78);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  backdrop-filter: blur(12px) saturate(1.15);
   color: var(--text);
   box-shadow:
-    0 0 0 1px var(--brass-dark),
-    0 12px 40px rgba(0, 0, 0, 0.6),
-    inset 0 0 0 1px var(--plate-hi),
-    inset 0 0 0 3px var(--plate),
-    inset 0 0 0 4px var(--brass-dark);
+    inset 0 0 0 1px var(--brass-soft),
+    inset 0 1px 0 rgba(255, 236, 190, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 24px 60px rgba(0, 0, 0, 0.6);
   animation: bz-drawer-in 220ms var(--ease-out);
 }
+/* Crisp brass corner brackets, shared by the completion card and the drawer. They sit 2px outside the
+   glass edge, so the 2px strokes touch it, and a small glow lifts them off the dark scene. */
+.bz-overlay__plate::before,
+.bz-drawer::before {
+  --bracket: 18px;
+  --stroke: 2px;
+  content: "";
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--brass-bright), var(--brass-bright)) top left / var(--bracket) var(--stroke) no-repeat,
+    linear-gradient(var(--brass-bright), var(--brass-bright)) top left / var(--stroke) var(--bracket) no-repeat,
+    linear-gradient(var(--brass-bright), var(--brass-bright)) top right / var(--bracket) var(--stroke) no-repeat,
+    linear-gradient(var(--brass-bright), var(--brass-bright)) top right / var(--stroke) var(--bracket) no-repeat,
+    linear-gradient(var(--brass-bright), var(--brass-bright)) bottom left / var(--bracket) var(--stroke) no-repeat,
+    linear-gradient(var(--brass-bright), var(--brass-bright)) bottom left / var(--stroke) var(--bracket) no-repeat,
+    linear-gradient(var(--brass-bright), var(--brass-bright)) bottom right / var(--bracket) var(--stroke) no-repeat,
+    linear-gradient(var(--brass-bright), var(--brass-bright)) bottom right / var(--stroke) var(--bracket) no-repeat;
+  filter: drop-shadow(0 0 4px rgba(217, 155, 56, 0.55));
+}
 .bz-drawer__header {
+  flex: none;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1178,25 +1610,42 @@ button {
   color: var(--text-muted);
   font-size: 13px;
 }
+.bz-drawer__star {
+  color: var(--amber);
+  text-shadow:
+    0 0 6px rgba(245, 185, 66, 0.9),
+    0 0 16px rgba(245, 185, 66, 0.5);
+}
 .bz-drawer__stages {
+  flex: 1 1 auto;
+  min-height: 0;
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 4px 0 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--brass-dark) transparent;
 }
 .bz-stage {
   display: flex;
+  flex: none;
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px;
-  background: rgba(13, 15, 20, 0.6);
   border-left: 3px solid var(--brass-dark);
+  border-radius: 8px;
+  background: rgba(7, 8, 11, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(217, 155, 56, 0.14);
 }
 .bz-stage--active {
   border-left-color: var(--amber);
-  background: rgba(245, 185, 66, 0.08);
+  background: linear-gradient(90deg, rgba(245, 185, 66, 0.14), rgba(245, 185, 66, 0.03));
+  box-shadow:
+    inset 0 0 0 1px rgba(245, 185, 66, 0.34),
+    0 0 16px rgba(245, 185, 66, 0.08);
 }
 .bz-stage__head {
   display: flex;
@@ -1210,7 +1659,8 @@ button {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--brass);
+  background: radial-gradient(circle at 35% 30%, #ffe0a0, var(--brass) 55%, var(--brass-dark));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
   color: var(--obsidian);
   font-size: 13px;
   font-weight: 700;
@@ -1228,7 +1678,7 @@ button {
   margin: 0;
   color: var(--text-muted);
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 1.6;
 }
 .bz-stage__foot {
   display: flex;
@@ -1244,6 +1694,86 @@ button {
   padding: 6px 12px;
   font-size: 12px;
 }
+.bz-drawer__footer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--brass-soft);
+}
+/* Upload Custom .glb: the same three-line brass bevel as the Hint plate, on a lighter glass. */
+.bz-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 236, 190, 0.1), rgba(255, 236, 190, 0) 50%),
+    rgba(217, 155, 56, 0.12);
+  color: var(--amber);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow:
+    inset 0 0 0 1px var(--brass-hairline),
+    inset 0 0 0 2px rgba(7, 8, 11, 0.7),
+    inset 0 0 0 3px rgba(138, 95, 28, 0.5);
+  transition: background 160ms linear, color 140ms linear, box-shadow 160ms var(--ease-out), transform 140ms var(--ease-out);
+}
+.bz-upload:hover {
+  background:
+    linear-gradient(180deg, rgba(255, 236, 190, 0.16), rgba(255, 236, 190, 0.02) 50%),
+    rgba(217, 155, 56, 0.24);
+  color: #ffe2a0;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 223, 146, 0.95),
+    inset 0 0 0 2px rgba(7, 8, 11, 0.7),
+    inset 0 0 0 3px rgba(176, 124, 38, 0.75),
+    0 0 16px rgba(217, 155, 56, 0.25);
+}
+.bz-upload:active {
+  transform: translateY(1px);
+  background: rgba(217, 155, 56, 0.1);
+  box-shadow:
+    inset 0 0 0 1px rgba(217, 155, 56, 0.75),
+    inset 0 0 0 2px rgba(7, 8, 11, 0.8),
+    inset 0 5px 10px rgba(0, 0, 0, 0.6);
+}
+.bz-drawer__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Edge-of-screen feedback flash ---------- */
+/* Purely decorative: it never takes the pointer, and the text cues stay in the popups and callout. */
+.bz-edge-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  opacity: 0;
+}
+.bz-edge-flash--crimson {
+  background: radial-gradient(ellipse at center, rgba(229, 72, 77, 0) 58%, rgba(229, 72, 77, 0.34) 100%);
+  box-shadow: inset 0 0 90px 6px rgba(229, 72, 77, 0.32);
+  animation: bz-edge-crimson 520ms ease-out forwards;
+}
+.bz-edge-flash--teal {
+  background: radial-gradient(ellipse at center, rgba(45, 212, 191, 0) 62%, rgba(45, 212, 191, 0.22) 100%);
+  box-shadow: inset 0 0 80px 2px rgba(45, 212, 191, 0.2);
+  animation: bz-edge-teal 680ms ease-out forwards;
+}
 
 @keyframes bz-hint-in {
   0% { opacity: 0; transform: translateY(8px); }
@@ -1258,14 +1788,35 @@ button {
   100% { opacity: 1; transform: translateX(0); }
 }
 
+/* ---------- Reduced motion (new pieces) ---------- */
+/* This block comes last, so its transition and transform resets beat the rules above. */
 @media (prefers-reduced-motion: reduce) {
+  .bz-edge-flash {
+    display: none;
+  }
   .bz-hint-banner,
   .bz-drawer,
   .bz-drawer-scrim,
   .bz-badge--best {
     animation: none;
   }
-  .bz-chip {
+  .bz-chip,
+  .bz-stage-pill,
+  .bz-stage-pill__caret,
+  .bz-icon-button,
+  .bz-upload,
+  .bz-hint-button,
+  .bz-lever,
+  .bz-lever__knob {
     transition: none;
+  }
+  .bz-hint-button:hover:not(:disabled),
+  .bz-lever:hover:not(:disabled),
+  .bz-hint-button:active:not(:disabled),
+  .bz-lever:active:not(:disabled),
+  .bz-lever:hover:not(:disabled) .bz-lever__knob,
+  .bz-icon-button:active,
+  .bz-upload:active {
+    transform: none;
   }
 }

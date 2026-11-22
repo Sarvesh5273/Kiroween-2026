@@ -110,6 +110,40 @@ export function formatElapsed(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}.${tenths}`;
 }
 
+/** Visual tier of the combo badge. The tier only changes how the badge looks, never the score. */
+export type ComboTier = "base" | "amber" | "gold" | "spectral";
+
+/**
+ * Tier for a combo multiplier: x1 base, x2 to x3 amber, x4 to x6 gold, x7 and above spectral
+ * (the combo is capped at x8). Values below 2, fractions below 2 and NaN map to the base tier.
+ */
+export function comboTier(value: number): ComboTier {
+  const whole = Math.trunc(value);
+  if (!(whole >= 2)) return "base";
+  if (whole <= 3) return "amber";
+  if (whole <= 6) return "gold";
+  return "spectral";
+}
+
+export type EdgeFlashTone = "crimson" | "teal";
+
+/**
+ * Tone of the brief screen-edge flash for an event: crimson for a blocked attempt or a false alarm,
+ * teal for a removed part, null for every other event. The flash is decoration. The popups, the
+ * callout and the live region carry the same information as text.
+ */
+export function edgeFlashTone(e: GameEvent): EdgeFlashTone | null {
+  switch (e.kind) {
+    case "part_blocked":
+    case "false_alarm":
+      return "crimson";
+    case "part_removed":
+      return "teal";
+    default:
+      return null;
+  }
+}
+
 /** Overlay model for a `level_completed` event, or null for any other event. */
 export function completionModel(e: GameEvent): CompletionModel | null {
   if (e.kind !== "level_completed") return null;

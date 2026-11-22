@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { combo, score } from "../game/selectors";
 import type { GameStore } from "../game/store";
+import { comboTier } from "./hudModel";
 import { useGameEvents, useGameState } from "./useGameStore";
 
 type ComboCueMode = "pulse" | "reset" | null;
@@ -16,6 +17,9 @@ const MAX_COMBO = 8;
 /**
  * Score and combo badge. The badge pulses when the combo changes (Req 16.2) and
  * flashes crimson on a blocked attempt or a false alarm, which reset it to x1 (Req 12.6).
+ * Its look escalates with the multiplier through `comboTier`: brass border at x1, amber glow at
+ * x2 to x3, golden halo at x4 to x6 and spectral teal halo at x7 to x8. The number stays in the
+ * badge text and in its accessible name, so the tier is never the only carrier of the value.
  */
 export function ScoreCombo({ store }: { store: GameStore }) {
   const state = useGameState(store);
@@ -41,7 +45,8 @@ export function ScoreCombo({ store }: { store: GameStore }) {
   });
 
   const value = combo(state);
-  const classes = ["bz-combo", "bz-num"];
+  const tier = comboTier(value);
+  const classes = ["bz-combo", "bz-num", `bz-combo--${tier}`];
   if (value >= MAX_COMBO) classes.push("bz-combo--max");
   if (cue.mode === "pulse") classes.push("bz-combo--pulse");
   if (cue.mode === "reset") classes.push("bz-combo--reset");
@@ -52,7 +57,7 @@ export function ScoreCombo({ store }: { store: GameStore }) {
         <p className="bz-score__label">Score</p>
         <span className="bz-score__value bz-num">{score(state)}</span>
       </div>
-      <span key={cue.key} className={classes.join(" ")} aria-label={`Combo x${value}`}>
+      <span key={cue.key} className={classes.join(" ")} data-tier={tier} aria-label={`Combo x${value}`}>
         {`x${value}`}
       </span>
     </div>

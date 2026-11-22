@@ -35,9 +35,18 @@ export function createPartMaterial(descriptor: MaterialDescriptor): MeshPhysical
 }
 
 /**
+ * Whether a part casts a shadow onto the turntable. Opaque, non-transmissive parts do. Glass
+ * (`transmission > 0`) and see-through parts (`opacity < 1`) do not: a shadow map stores one depth per
+ * texel, so they would throw a solid shadow and hide what sits inside them.
+ */
+export function castsShadow(descriptor: MaterialDescriptor): boolean {
+  return descriptor.transmission <= 0 && descriptor.opacity >= 1;
+}
+
+/**
  * Builds the mesh of one part. The geometry uses the transferred buffers
  * directly and builds no BVH (Req 10.6). Bounding volumes are computed for
- * raycast rejection.
+ * raycast rejection. Non-transmissive parts cast soft shadows onto the turntable.
  */
 export function createPartMesh(part: PartRenderData): Mesh {
   const geometry = new BufferGeometry();
@@ -48,6 +57,7 @@ export function createPartMesh(part: PartRenderData): Mesh {
   geometry.computeBoundingBox();
   const mesh = new Mesh(geometry, createPartMaterial(part.material));
   mesh.name = part.partId;
+  mesh.castShadow = castsShadow(part.material);
   return mesh;
 }
 
