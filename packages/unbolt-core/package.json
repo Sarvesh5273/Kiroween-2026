@@ -1,0 +1,25 @@
+{
+  "name": "@unboltkit/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "types": "src/index.ts",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:quick": "vitest run --exclude \"test/invariants/**\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.170.0",
+    "three-mesh-bvh": "^0.8.3"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "@unboltkit/sample-kits": "*",
+    "fast-check": "^3.23.2",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
