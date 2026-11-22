@@ -1,6 +1,6 @@
 /**
  * View slice reducer: mode, Step_Timeline position, Explode_Slider value, selected step, playback,
- * reduced-motion flag and camera commands.
+ * playback speed, reduced-motion flag and camera commands.
  *
  * Rules (Requirements 4.5, 10.2, 10.8, 11.1, 11.8, 11.9, 11.10, 13.7, 14.9, 15.4):
  * - `view/modeSet` is gated by `selectModeToggleEnabled` and never touches the solve slice. Switching
@@ -8,10 +8,12 @@
  * - The timeline and the Explode_Slider share one position `p`, so `selectedStepIndex` always equals
  *   `activeStepIndex(p, N)` after a timeline or slider change, and `stepSelected(i)` sets `p = i + 1`.
  * - `playing` implies `p < N`, DBG mode, an enabled timeline and no reduced-motion request.
+ * - `view/speedSet` accepts 1, 3 or 8 and ignores any other value. The speed is a user preference,
+ *   so a new solve and a mode switch keep it. Each tick advances `PLAYBACK_STEPS_PER_SECOND * speed`.
  *
  * Pure. No React, no DOM and no three import.
  */
-import { advancePlayback } from "../motion/playback";
+import { advancePlayback, isPlaybackSpeed, playbackRate } from "../motion/playback";
 import { activeStepIndex, sliderToTimeline } from "../motion/timeline";
 import { selectControlEnablement, selectModeToggleEnabled } from "./selectors";
 import type { AppState, CameraCommand, CameraKind, SliceReducer, ViewSlice } from "./types";
@@ -22,6 +24,7 @@ export const initialViewSlice: ViewSlice = {
   naiveExplode: 0,
   selectedStepIndex: null,
   playing: false,
+  playbackSpeed: 1,
   reducedMotion: false,
   cameraCommand: null,
 };
@@ -69,9 +72,11 @@ function withTimeline(slice: ViewSlice, p: number, n: number): ViewSlice {
 export const viewReducer: SliceReducer<ViewSlice> = (slice, action, previous) => {
   switch (action.type) {
     case "solve/started":
-      // A new solve starts from the default view. Reduced motion is an OS fact and is kept.
+      // A new solve starts from the default view. Reduced motion is an OS fact and the playback
+      // speed is the user's choice, so both are kept.
       return {
         ...initialViewSlice,
+        playbackSpeed: slice.playbackSpeed,
         reducedMotion: slice.reducedMotion,
         cameraCommand: slice.cameraCommand,
       };
@@ -145,12 +150,16 @@ export const viewReducer: SliceReducer<ViewSlice> = (slice, action, previous) =>
 
     case "view/pauseRequested":
       return slice.playing ? { ...slice, playing: false } : slice;
+    case "view/speedSet":
+      // The type allows 1, 3 and 8 only. The runtime check covers an action built from untyped input.
+      if (!isPlaybackSpeed(action.speed) || action.speed === slice.playbackSpeed) return slice;
+      return { ...slice, playbackSpeed: action.speed };
 
     case "view/tick": {
       if (!slice.playing) return slice;
       if (!selectControlEnablement(previous).play) return { ...slice, playing: false };
       const n = timelineStepCount(previous);
-      const p = advancePlayback(slice.timelineP, n, action.deltaSeconds);
+      const p = advancePlayback(slice.timelineP, n, action.deltaSeconds, playbackRate(slice.playbackSpeed));
       return {
         ...slice,
         timelineP: p,

@@ -64,6 +64,7 @@
  * Timeline bar
  *   gf-timeline                  bar under the canvas
  *     gf-transport, gf-transport__btn (--play)
+ *     gf-speed, gf-speed__opt    playback speed pill (1x | 3x | 8x), right after Play
  *     gf-timeline__main, __head, __label, __value, __reasons, __reason
  *     gf-timeline__track         holds the custom track and the ticks
  *     gf-timeline__ticks, __tick, __tick-label
@@ -160,7 +161,7 @@ ul {
 .gf-kbd {
   padding: 0 5px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-min);
   line-height: 16px;
   color: var(--muted);
   background: var(--slate-bg);
@@ -259,7 +260,7 @@ ul {
 
 .gf-field__label {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-min);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -268,6 +269,8 @@ ul {
 .gf-select {
   min-height: 32px;
   padding: 0 var(--space-2);
+  padding-right: 28px;
+  text-overflow: ellipsis;
   font: inherit;
   font-size: 13px;
   color: var(--text);
@@ -353,8 +356,8 @@ ul {
 .gf-header__subtitle {
   display: none;
   font-family: var(--font-mono);
-  font-size: 9.5px;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-min);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -396,9 +399,10 @@ ul {
     flex-shrink: 1;
     min-width: 0;
   }
+  /* Wide enough for "Deadlock Cage: Dumbbell and Ring" before the chevron at 1440px and up. */
   .gf-header .gf-select {
-    width: clamp(120px, 13vw, 200px);
-    min-width: 0;
+    width: clamp(220px, 20vw, 280px);
+    min-width: 220px;
   }
   .gf-header > .gf-clash {
     flex-shrink: 1;
@@ -956,7 +960,7 @@ ul {
 .gf-pipeline__stage-id {
   grid-area: id;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-min);
   color: var(--muted);
 }
 
@@ -1042,7 +1046,7 @@ ul {
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-min);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -1050,7 +1054,7 @@ ul {
 
 .gf-compare__value {
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: var(--fs-metric);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -1088,7 +1092,7 @@ ul {
   align-self: center;
   padding: 0 2px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-min);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -1213,6 +1217,65 @@ ul {
   border-color: var(--hairline);
 }
 
+/* Playback speed: a compact pill segmented control (1x | 3x | 8x) right after Play. The active
+   segment is navy like the Hero toggle. Disabled, it follows the dashed Play button, and the
+   active segment keeps an inset outline, so the selection never depends on colour alone. */
+.gf-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--slate-bg);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: var(--radius-pill);
+}
+
+.gf-speed__opt {
+  min-width: 34px;
+  min-height: 26px;
+  padding: 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-min);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition:
+    background-color var(--duration) var(--ease),
+    color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
+}
+
+.gf-speed__opt:hover:not(:disabled):not([aria-pressed="true"]) {
+  color: var(--text);
+  background: var(--panel);
+}
+
+.gf-speed__opt[aria-pressed="true"] {
+  color: var(--on-accent);
+  background: var(--accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.gf-speed[data-disabled="true"] {
+  background: var(--canvas);
+  border-style: dashed;
+  border-color: var(--rule-strong);
+}
+
+.gf-speed__opt:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.gf-speed__opt[aria-pressed="true"]:disabled {
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
+}
+
 .gf-timeline__main {
   display: flex;
   flex: 1 1 auto;
@@ -1231,7 +1294,7 @@ ul {
 .gf-timeline__label {
   flex: none;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-min);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -1260,7 +1323,7 @@ ul {
   min-width: 0;
   overflow: hidden;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-min);
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--muted);
@@ -1399,7 +1462,7 @@ ul {
 
 .gf-timeline__tick-label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-min);
   line-height: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
@@ -1441,7 +1504,7 @@ ul {
 .gf-caption__badge {
   padding: 1px 10px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-min);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1508,7 +1571,7 @@ ul {
 
 .gf-tag__key {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-min);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -1524,7 +1587,7 @@ ul {
   flex-wrap: wrap;
   gap: 2px var(--space-4);
   margin: 0;
-  font-size: 11.5px;
+  font-size: var(--fs-min);
   color: var(--muted);
 }
 
@@ -1617,7 +1680,7 @@ ul {
   justify-content: space-between;
   padding: var(--space-2) var(--space-4) 6px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-min);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
@@ -1625,7 +1688,7 @@ ul {
 
 .gf-manifest__count {
   padding: 0 7px;
-  font-size: 10.5px;
+  font-size: var(--fs-min);
   font-variant-numeric: tabular-nums;
   color: var(--accent);
   background: var(--accent-soft);
@@ -1679,7 +1742,7 @@ ul {
 
 .gf-bom__label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-min);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -1820,7 +1883,7 @@ ul {
 .gf-step__dist {
   grid-area: dist;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-min);
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
@@ -1832,7 +1895,7 @@ ul {
   align-items: center;
   gap: var(--space-1);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-min);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1840,7 +1903,7 @@ ul {
 
 .gf-step__clashes {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-min);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1870,7 +1933,7 @@ ul {
   display: inline-block;
   padding: 1px 9px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-min);
   font-weight: 700;
   white-space: nowrap;
   color: var(--accent);
@@ -1949,7 +2012,7 @@ ul {
 .gf-notes__title {
   min-width: 0;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-min);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent);

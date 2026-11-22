@@ -9,12 +9,13 @@
  *   view: camera views (Iso, Front, Top, Fit) and view modes (All, Hide Removed, Ghost). It floats
  *   over the canvas, so the canvas keeps the full column height.
  * - `StepTimeline` is the slim bar under the canvas: Prev (K), Play (Space) and Next (J) transport
- *   buttons next to one custom blueprint track. In DBG mode the track is the Step_Timeline with
+ *   buttons, a 1x / 3x / 8x playback speed pill right after Play, and one custom blueprint track. In DBG mode the track is the Step_Timeline with
  *   thinned step numbers. In Naive mode the same track is the Explode_Slider, because the timeline
  *   does not apply there and the two never need to be on screen together.
  */
 import { useId, type ChangeEvent, type CSSProperties, type ReactElement } from "react";
 import { nextStepIndex } from "../authoring/useKeyboardShortcuts";
+import { PLAYBACK_SPEEDS } from "../motion/playback";
 import type { SolveResult } from "../protocol";
 import { useAppDispatch, useAppState } from "../state/AppStateProvider";
 import { selectControlEnablement } from "../state/selectors";
@@ -114,7 +115,7 @@ export function StepTimeline(): ReactElement {
   const dispatch = useAppDispatch();
   const sliderId = useId();
   const enablement = selectControlEnablement(state);
-  const { mode, playing, timelineP, naiveExplode, selectedStepIndex } = state.view;
+  const { mode, playing, timelineP, naiveExplode, selectedStepIndex, playbackSpeed } = state.view;
   const n = stepCount(state.solve.result);
   const naive = mode === "naive";
 
@@ -131,6 +132,8 @@ export function StepTimeline(): ReactElement {
   const nextIndex = nextStepIndex(selectedStepIndex, n, 1);
   const explodeReason = explodeDisabledReason(state);
   const playReason = playDisabledReason(state);
+  // The speed pill follows Play: it is available exactly when Play or Pause is.
+  const playDisabled = !enablement.play && !playing;
 
   const onChange = (event: ChangeEvent<HTMLInputElement>): void => {
     const next = Number(event.currentTarget.value);
@@ -170,13 +173,29 @@ export function StepTimeline(): ReactElement {
           className="gf-transport__btn gf-transport__btn--play"
           title={playing ? "Pause playback (Space)" : "Play the removal sequence (Space)"}
           aria-keyshortcuts="Space"
-          disabled={!enablement.play && !playing}
+          disabled={playDisabled}
           onClick={onPlayPause}
         >
           {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
           <span>{playing ? "Pause" : "Play"}</span>
           <kbd className="gf-kbd">Space</kbd>
         </button>
+        <div className="gf-speed" role="group" aria-label="Playback speed" data-disabled={playDisabled}>
+          {PLAYBACK_SPEEDS.map((speed) => (
+            <button
+              key={speed}
+              type="button"
+              className="gf-speed__opt"
+              title={`Play the removal sequence at ${speed}x speed`}
+              aria-label={`${speed}x speed`}
+              aria-pressed={playbackSpeed === speed}
+              disabled={playDisabled}
+              onClick={() => dispatch({ type: "view/speedSet", speed })}
+            >
+              {speed}×
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           className="gf-transport__btn"

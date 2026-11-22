@@ -102,6 +102,12 @@
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
+  /* Type floor for small secondary text (labels, badges, counts, captions). Nothing in app.css
+     goes below --fs-min, so the smallest text still reads on 1080p demo video. --fs-metric sizes
+     the figures on the comparison card. */
+  --fs-min: 0.75rem;
+  --fs-metric: 0.9375rem;
+
   /* Spacing and shape (drafting grid unit is 8px) */
   --grid-unit: 8px;
   --space-1: 4px;

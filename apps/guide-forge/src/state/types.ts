@@ -71,6 +71,8 @@ export interface SolveSlice {
   progress: Partial<Record<StageName, StageProgressEvent>>;
 }
 
+/** Playback speed multiplier on the base rate of one timeline step per second. */
+export type PlaybackSpeed = 1 | 3 | 8;
 export interface ViewSlice {
   mode: Mode;
   /** Step_Timeline position in [0, N]. */
@@ -79,6 +81,8 @@ export interface ViewSlice {
   naiveExplode: number;
   selectedStepIndex: number | null;
   playing: boolean;
+  /** Multiplier applied to the playback rate. A user preference, so a new solve keeps it. */
+  playbackSpeed: PlaybackSpeed;
   reducedMotion: boolean;
   cameraCommand: CameraCommand | null;
 }
@@ -146,6 +150,7 @@ export type AppAction =
   | { type: "view/stepSelected"; index: number }
   | { type: "view/playRequested" }
   | { type: "view/pauseRequested" }
+  | { type: "view/speedSet"; speed: PlaybackSpeed }
   | { type: "view/tick"; deltaSeconds: number }
   | { type: "view/cameraRequested"; kind: CameraKind; partId?: string }
   | { type: "env/reducedMotionChanged"; reduced: boolean }

@@ -64,11 +64,11 @@ Observed on this checkout (`npm test` per workspace, Vitest 3):
 | --- | --- | --- |
 | `@unboltkit/core` | 48 | 465 |
 | `@unboltkit/sample-kits` | 3 | 10 |
-| `@unboltkit/guide-forge` | 6 | 99 |
+| `@unboltkit/guide-forge` | 7 | 120 |
 | `@unboltkit/unbolt-blitz` | 13 | 88 |
 | `@unboltkit/cad-auditor-mcp` | 1 | 36 |
 | `@unboltkit/crew-assembly-ci` | 1 | 18 |
-| **Total** | **72** | **716** (all passing) |
+| **Total** | **73** | **737** (all passing) |
 
 - `npm run test:quick` in core skips the heavy invariant runs: 34 files, 451 tests.
 - The core invariant suite (clash-free plans, rigid-motion invariance, split-back of merged meshes on the 3-stage planetary gearbox) takes about 6.5 minutes. Vitest's worker RPC can time out during that run, and during the full `guide-forge` run, and report an error, although every test passes.
