@@ -1,0 +1,16 @@
+{
+  "name": "unboltkit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UnboltKit monorepo",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}
