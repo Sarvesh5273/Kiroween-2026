@@ -1,7 +1,8 @@
 /**
  * Clash_Badge (Requirements 2.2, 10.3 to 10.6, 9.5): monospace telemetry with a leading SVG status
  * icon and the text from `selectClashBadge`. The icon shape and the words carry the status, so it
- * never depends on colour alone.
+ * never depends on colour alone. The text shrinks with an ellipsis before it can push the header
+ * past the right edge, and `title` always carries the full wording.
  */
 import type { ReactElement } from "react";
 import { useAppState } from "../state/AppStateProvider";
@@ -37,6 +38,7 @@ export function ClashBadge(): ReactElement {
       className={`gf-clash ${TONE_BY_ICON[badge.icon]}`}
       role="status"
       aria-label={`Clash summary: ${badge.text}`}
+      title={badge.text}
       data-testid="clash-badge"
     >
       <StatusIcon icon={badge.icon} />

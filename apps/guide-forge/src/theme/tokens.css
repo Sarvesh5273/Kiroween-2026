@@ -1,5 +1,5 @@
 /*
- * Guide Forge theme tokens: Light Blueprint.
+ * Guide Forge theme tokens: Light Blueprint, Swiss CAD studio.
  *
  * This is the ONLY file in the app that contains colour literals. app.css and
  * every component style reference these custom properties through var(...).
@@ -14,13 +14,27 @@
  * test/unit/theme.test.ts parses these lines and the hex values of the base
  * tokens, then recomputes the ratios.
  *
+ * Frosted-glass pills (`--glass`) are translucent white over the studio
+ * background, so their text is checked against both extremes: --panel (opaque
+ * white) and --studio-edge (the darkest background a pill can sit on).
+ *
  * pair: --text on --canvas
  * pair: --text on --panel
+ * pair: --text on --studio-edge
  * pair: --accent on --canvas
  * pair: --accent on --panel
+ * pair: --accent on --studio-edge
  * pair: --on-accent on --accent
  * pair: --muted on --canvas
  * pair: --muted on --panel
+ * pair: --muted on --studio-edge
+ * pair: --muted on --slate-bg
+ * pair: --crimson on --panel
+ * pair: --on-crimson on --crimson
+ * pair: --teal on --panel
+ * pair: --teal on --teal-bg
+ * pair: --indigo on --panel
+ * pair: --indigo on --indigo-bg
  * pair: --ok on --ok-bg
  * pair: --ok on --panel
  * pair: --warn on --warn-bg
@@ -40,6 +54,20 @@
   --panel: #FFFFFF;
   --on-accent: #FFFFFF;
 
+  /* Whisper-thin hairline used for every divider and control border */
+  --hairline: #DCE3EE;
+
+  /* Naive mode: vivid crimson, the same hue the 3D viewport uses for clashing parts */
+  --crimson: #DC143C;
+  --on-crimson: #FFFFFF;
+
+  /* Primitive badges: helical teal, other indigo, linear slate */
+  --teal: #0F766E;
+  --teal-bg: #F0FDFA;
+  --indigo: #4338CA;
+  --indigo-bg: #EEF2FF;
+  --slate-bg: #F1F5F9;
+
   /* Status pairs: foreground / tinted background */
   --ok: #14532D;
   --ok-bg: #F0FDF4;
@@ -48,13 +76,25 @@
   --bad: #9F1239;
   --bad-bg: #FFF1F2;
 
+  /* Studio backdrop of the 3D viewport: centre fades to the edges */
+  --studio-center: #FAFBFD;
+  --studio-edge: #EEF3F8;
+
+  /* Elevation and glass */
+  --elevation: 0 4px 16px rgba(15, 23, 42, 0.06);
+  --elevation-lift: 0 8px 28px rgba(15, 23, 42, 0.12);
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-edge: rgba(255, 255, 255, 0.9);
+
   /* Derived tints. They mix the tokens above, so no new literal appears. */
-  --rule: color-mix(in srgb, var(--accent) 28%, var(--canvas));
-  --rule-strong: color-mix(in srgb, var(--accent) 70%, var(--canvas));
-  --accent-soft: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  --rule: var(--hairline);
+  --rule-strong: color-mix(in srgb, var(--accent) 22%, var(--hairline));
+  --accent-soft: color-mix(in srgb, var(--accent) 7%, var(--panel));
   --accent-hover: color-mix(in srgb, var(--accent) 88%, var(--panel));
-  --grid-minor: color-mix(in srgb, var(--accent) 6%, transparent);
-  --grid-major: color-mix(in srgb, var(--accent) 11%, transparent);
+  --hover: color-mix(in srgb, var(--accent) 5%, var(--panel));
+  --crimson-hover: color-mix(in srgb, var(--crimson) 90%, var(--text));
+  --crimson-soft: color-mix(in srgb, var(--crimson) 8%, var(--panel));
+  --track: color-mix(in srgb, var(--accent) 12%, var(--panel));
   --shadow: color-mix(in srgb, var(--accent) 14%, transparent);
   --scrim: color-mix(in srgb, var(--accent) 6%, transparent);
 
@@ -69,9 +109,11 @@
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
-  --radius: 2px;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-pill: 999px;
   --rule-width: 1px;
-  --manifest-width: clamp(300px, 28vw, 400px);
+  --manifest-width: clamp(300px, 26vw, 380px);
 
   /* Motion. Reduced-motion media query in app.css zeroes every transition and animation. */
   --ease: cubic-bezier(0.2, 0, 0, 1);

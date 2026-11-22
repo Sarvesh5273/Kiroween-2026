@@ -173,6 +173,35 @@ export function PauseIcon(props: IconProps): ReactElement {
   );
 }
 
+/** Downward chevron. Rotate it with CSS for the expanded state. */
+export function ChevronDownIcon(props: IconProps): ReactElement {
+  return (
+    <IconFrame {...props}>
+      <polyline points="5,9 12,16 19,9" />
+    </IconFrame>
+  );
+}
+
+/** Bar and left-pointing triangle: previous step. */
+export function StepBackIcon(props: IconProps): ReactElement {
+  return (
+    <IconFrame {...props}>
+      <line x1="5" y1="5" x2="5" y2="19" />
+      <polygon points="19,5 9,12 19,19" />
+    </IconFrame>
+  );
+}
+
+/** Right-pointing triangle and bar: next step. */
+export function StepForwardIcon(props: IconProps): ReactElement {
+  return (
+    <IconFrame {...props}>
+      <polygon points="5,5 15,12 5,19" />
+      <line x1="19" y1="5" x2="19" y2="19" />
+    </IconFrame>
+  );
+}
+
 export const ICONS = {
   check: CheckIcon,
   warn: WarnIcon,
@@ -185,6 +214,9 @@ export const ICONS = {
   worker: WorkerIcon,
   play: PlayIcon,
   pause: PauseIcon,
+  chevronDown: ChevronDownIcon,
+  stepBack: StepBackIcon,
+  stepForward: StepForwardIcon,
 } as const;
 
 export type IconName = keyof typeof ICONS;

@@ -45,9 +45,14 @@ export function UploadButton(): ReactElement {
         data-testid="upload-input"
         onChange={onChange}
       />
-      <button type="button" className="gf-btn" onClick={openPicker}>
+      <button
+        type="button"
+        className="gf-btn"
+        title="Upload a .glb or .gltf assembly, or drop one on the viewport"
+        onClick={openPicker}
+      >
         <FileIcon className="gf-icon" />
-        <span>Upload .glb / .gltf</span>
+        <span>Upload</span>
       </button>
     </div>
   );

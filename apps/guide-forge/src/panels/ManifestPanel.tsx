@@ -4,10 +4,13 @@
  * Reads App_State through the context and changes it only by dispatching App_Actions:
  * - a Step row dispatches `view/stepSelected`, which selects the Step, sets the timeline position
  *   and focuses the camera (Requirement 15.4);
- * - the Step Authoring Editor edits the selected step's annotations (`authoring/*` actions). It is
- *   pinned below the manifest body, and the step list scrolls inside its own bounded container;
+ * - the Step Notes card edits the selected step's annotations (`authoring/*` actions). It is pinned
+ *   below the list, and the step list scrolls inside the space between the metric strip and the card;
  * - a Part name in the Interlock_Banner or the Locked Parts list dispatches `view/cameraRequested`
  *   with `kind: "focus"` (Requirement 14.6).
+ *
+ * Layout, top to bottom: header, status callout and metric strip, the scrolling step list (with the
+ * Locked Parts list under it for a deadlocked plan), the pinned Step Notes card.
  */
 import type { ReactElement } from "react";
 import {
@@ -35,6 +38,9 @@ export function ManifestPanel(): ReactElement {
     dispatch({ type: "view/cameraRequested", kind: "focus", partId });
   };
 
+  const hasPlan = result !== null && result.plan.status !== "error";
+  const rows = hasPlan ? selectManifestRows(state) : [];
+
   let body: ReactElement;
   let pinned: ReactElement | null = null;
   if (result === null || result.plan.status === "error") {
@@ -50,24 +56,26 @@ export function ManifestPanel(): ReactElement {
         </p>
       );
   } else {
-    const rows = selectManifestRows(state);
     const lockedRows = selectLockedPartRows(state);
     const deadlocked = result.plan.status === "deadlocked";
     body = (
       <>
-        <StatusCallout result={result} mode={state.view.mode} />
-        {deadlocked ? <InterlockBanner result={result} onFocusPart={focusPart} /> : null}
-        <BomSummary bom={selectBom(result)} />
-        <section className="gf-manifest__section" aria-labelledby="gf-steps-heading">
+        <div className="gf-manifest__summary">
+          <StatusCallout result={result} mode={state.view.mode} />
+          {deadlocked ? <InterlockBanner result={result} onFocusPart={focusPart} /> : null}
+          <BomSummary bom={selectBom(result)} />
+        </div>
+        <section className="gf-manifest__steps" aria-labelledby="gf-steps-heading">
           <h3 id="gf-steps-heading" className="gf-manifest__heading">
-            {deadlocked ? "Peeled Steps" : "Steps"}
+            <span>{deadlocked ? "Peeled Steps" : "Steps"}</span>
+            <span className="gf-manifest__count">{rows.length}</span>
           </h3>
-          {rows.length === 0 ? (
-            <p className="gf-manifest__empty">
-              {deadlocked ? "No step could be peeled before the deadlock." : "This plan has no steps."}
-            </p>
-          ) : (
-            <div className="gf-steps-scroll" tabIndex={-1}>
+          <div className="gf-steps-scroll" tabIndex={-1}>
+            {rows.length === 0 ? (
+              <p className="gf-manifest__empty">
+                {deadlocked ? "No step could be peeled before the deadlock." : "This plan has no steps."}
+              </p>
+            ) : (
               <ol className="gf-steps">
                 {rows.map((row) => (
                   <li key={row.partId}>
@@ -75,13 +83,13 @@ export function ManifestPanel(): ReactElement {
                   </li>
                 ))}
               </ol>
-            </div>
-          )}
+            )}
+            <LockedParts rows={lockedRows} onFocusPart={focusPart} />
+          </div>
         </section>
-        <LockedParts rows={lockedRows} onFocusPart={focusPart} />
       </>
     );
-    // Pinned below the scrolling body so the editor is reachable however many steps there are.
+    // Pinned below the list so the notes card is reachable however many steps there are.
     pinned = rows.length > 0 ? <StepAuthoringPanel /> : null;
   }
 

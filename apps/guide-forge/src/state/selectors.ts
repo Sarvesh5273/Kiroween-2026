@@ -324,13 +324,16 @@ export function selectBom(result: SolveResult): BomSummary {
 }
 
 // ---------------------------------------------------------------------------
-// Progress strip (Requirements 5.6, 16.2)
+// Pipeline telemetry (Requirements 5.6, 16.2)
 // ---------------------------------------------------------------------------
 
 export interface StageDisplay {
   stage: StageName;
   state: "pending" | "started" | "completed" | "skipped";
+  /** Milliseconds since the solve began, at the latest event of the stage. */
   elapsedMs: number | null;
+  /** Duration of the stage itself. `null` until the stage completes, and for a skipped stage. */
+  durationMs: number | null;
 }
 
 /** Stages that never run for a deadlocked plan. */
@@ -341,15 +344,146 @@ export function selectProgressStrip(state: AppState): StageDisplay[] {
   const { status, progress, result } = state.solve;
   return STAGE_NAMES.map((stage): StageDisplay => {
     const event = progress[stage];
-    if (event !== undefined) return { stage, state: event.state, elapsedMs: event.elapsedMs };
+    if (event !== undefined) {
+      return { stage, state: event.state, elapsedMs: event.elapsedMs, durationMs: event.durationMs };
+    }
 
     if (status === "ready" && result !== null) {
       const planStatus = result.plan.status;
-      if (planStatus === "error") return { stage, state: "skipped", elapsedMs: null };
+      if (planStatus === "error") return { stage, state: "skipped", elapsedMs: null, durationMs: null };
       if (planStatus === "deadlocked" && SKIPPED_FOR_DEADLOCK.includes(stage)) {
-        return { stage, state: "skipped", elapsedMs: null };
+        return { stage, state: "skipped", elapsedMs: null, durationMs: null };
       }
     }
-    return { stage, state: "pending", elapsedMs: null };
+    return { stage, state: "pending", elapsedMs: null, durationMs: null };
   });
+}
+
+/** What each pipeline stage does, as a present-participle phrase for the live progress strip. */
+const STAGE_ACTIVITY: Readonly<Record<StageName, string>> = {
+  stage0: "Stage 0: Parsing scene graph...",
+  stage1: "Stage 1: Normalizing parts...",
+  stage2: "Stage 2: Building Swept-Ray DBG...",
+  stage3: "Stage 3: Peeling removal order...",
+  stage4: "Stage 4: Compiling motion primitives...",
+  oracle: "Oracle: Verifying clash-free removal...",
+  naive: "Naive baseline: Counting radial-explode clashes...",
+};
+
+/** Progress strip text for the stage that is running, for example `Stage 2: Building Swept-Ray DBG...`. */
+export function stageActivityLabel(stage: StageName): string {
+  return STAGE_ACTIVITY[stage];
+}
+
+export interface PipelineTelemetry {
+  /** `running` while a solve is loading, `done` once a result is in, `idle` otherwise. */
+  phase: "idle" | "running" | "done";
+  /** The stage that has started and not yet completed. */
+  activeStage: StageName | null;
+  /** Text for the progress strip while running. */
+  label: string;
+  /** Share of stages completed, counting the running stage as half. Below 1 while running. */
+  fraction: number;
+  /** `timings.totalMs` of the finished solve, otherwise `null`. */
+  totalMs: number | null;
+  stages: StageDisplay[];
+}
+
+export function selectPipelineTelemetry(state: AppState): PipelineTelemetry {
+  const { status, result } = state.solve;
+  const stages = selectProgressStrip(state);
+  const phase: PipelineTelemetry["phase"] =
+    status === "loading" ? "running" : status === "ready" && result !== null ? "done" : "idle";
+
+  const active = stages.find((entry) => entry.state === "started") ?? null;
+  const completed = stages.filter((entry) => entry.state === "completed").length;
+  const activeStage = phase === "running" && active !== null ? active.stage : null;
+
+  let label = "Starting solver...";
+  if (activeStage !== null) label = stageActivityLabel(activeStage);
+  else if (completed > 0) label = "Finalizing results...";
+
+  const fraction = Math.min(0.96, (completed + (activeStage === null ? 0 : 0.5)) / STAGE_NAMES.length);
+  return {
+    phase,
+    activeStage,
+    label,
+    fraction: phase === "done" ? 1 : fraction,
+    totalMs: phase === "done" && result !== null ? result.timings.totalMs : null,
+    stages,
+  };
+}
+
+/** `842 ms` below one second, otherwise seconds with one decimal (`5.1s`). `null` gives an en dash. */
+export function formatDuration(ms: number | null): string {
+  if (ms === null || !Number.isFinite(ms)) return "\u2013";
+  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** Whole milliseconds with a thousands separator (`3,812 ms`), for the per-stage breakdown. `null` gives an en dash. */
+export function formatStageMs(ms: number | null): string {
+  if (ms === null || !Number.isFinite(ms)) return "\u2013";
+  return `${Math.round(ms).toLocaleString("en-US")} ms`;
+}
+
+// ---------------------------------------------------------------------------
+// Comparison telemetry card: DBG against Naive for a solved plan
+// ---------------------------------------------------------------------------
+
+export interface ComparisonModel {
+  dbg: {
+    label: string;
+    /** `oracle.totalClashes`. `null` when the plan has no oracle report. */
+    clashes: number | null;
+    verified: boolean;
+    /** For example `0 clashes (Verified)`. */
+    text: string;
+  };
+  naive: {
+    label: string;
+    /** `naive.totalClashes`. */
+    clashes: number;
+    /** Entries of `naive.perPart` with `clashCount > 0`. */
+    obstructed: number;
+    /** `naive.perPart.length`: the naive report lists every part. */
+    total: number;
+    /** For example `54264 clashes (140/157 parts obstructed)`. */
+    text: string;
+  };
+}
+
+function clashText(count: number): string {
+  return `${count} ${count === 1 ? "clash" : "clashes"}`;
+}
+
+/**
+ * The two numbers the product claim rests on, side by side. Both come from the reports in the
+ * `SolveResult`: the independent oracle for DBG and the naive baseline for the radial explode.
+ * `Verified` is claimed only when an oracle report exists and counts zero clashes (Requirement 9.4).
+ * `null` unless the plan is solved and a naive report exists.
+ */
+export function selectComparison(result: SolveResult | null): ComparisonModel | null {
+  if (result === null || result.plan.status !== "solved" || result.naive === null) return null;
+
+  const oracle = result.oracle;
+  const dbgClashes = oracle === null ? null : oracle.totalClashes;
+  const verified = dbgClashes === 0;
+  const dbgText =
+    dbgClashes === null
+      ? "Not Verified"
+      : `${clashText(dbgClashes)} (${verified ? "Verified" : "Not Verified"})`;
+
+  const naive = result.naive;
+  const obstructed = naive.perPart.filter((entry) => entry.clashCount > 0).length;
+  const total = naive.perPart.length;
+  return {
+    dbg: { label: "UnboltKit DBG", clashes: dbgClashes, verified, text: dbgText },
+    naive: {
+      label: "Naive Explode",
+      clashes: naive.totalClashes,
+      obstructed,
+      total,
+      text: `${clashText(naive.totalClashes)} (${obstructed}/${total} parts obstructed)`,
+    },
+  };
 }

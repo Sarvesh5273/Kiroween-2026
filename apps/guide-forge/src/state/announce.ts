@@ -1,7 +1,7 @@
 /**
  * Visible and `aria-live` message text for each state change (Requirements 16.2, 16.3).
  *
- * Pure string builders. The same text feeds the visible status line and the live region.
+ * Pure string builders. The text feeds the live region, and `toastModeChange` feeds the floating toast.
  * No React, no DOM, no three, and no audio of any kind.
  */
 import { KIT_TITLES } from "../kits";
@@ -75,4 +75,15 @@ export function announceDeadlock(model: DeadlockModel): string {
 /** The user switched the Hero_Toggle. */
 export function announceModeChange(mode: Mode): string {
   return `Mode changed to ${MODE_LABELS[mode]}.`;
+}
+
+/**
+ * Short transient toast text for a mode switch. Switching to Naive names the clash total from the
+ * naive report, so the cost of the naive plan is visible the moment the parts burst apart.
+ */
+export function toastModeChange(mode: Mode, result: SolveResult | null): string {
+  if (mode === "naive" && result !== null && result.naive !== null) {
+    return `Switched to ${MODE_LABELS.naive} \u00b7 ${plural(result.naive.totalClashes, "clash")}`;
+  }
+  return `Switched to ${MODE_LABELS[mode]}`;
 }

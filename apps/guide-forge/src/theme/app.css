@@ -1,19 +1,21 @@
 /*
- * Guide Forge app styles: Light Blueprint technical CAD studio.
+ * Guide Forge app styles: Light Blueprint Swiss CAD studio.
  *
  * Rules for this file
  *  - No colour literals. Every colour comes from tokens.css through var(...).
  *  - No import from apps/unbolt-blitz. Nothing here is shared with that app.
  *  - Monospace (var(--font-mono)) for telemetry numbers, badges and the clash badge.
+ *  - Soft 8px radii, #DCE3EE hairlines (var(--hairline)) and one gentle elevation
+ *    (var(--elevation)). The 3D assembly is the hero: every control that can float, floats.
  *
  * CLASS NAME REFERENCE (BEM-ish, prefix gf-)
  * ------------------------------------------
  * Modifiers use double dash (gf-btn--primary). State classes use is- (is-selected).
  * Where a native attribute carries the state it is styled directly:
- * aria-pressed="true", aria-current="step", [disabled], [aria-disabled="true"].
+ * aria-pressed="true", aria-current="step", aria-expanded, [disabled], [hidden].
  *
  * Shell
- *   gf-app                       root column: header, strips, main
+ *   gf-app                       root column: header, notices, main
  *   gf-main                      row under the header: viewport (centre) + manifest (right)
  *   gf-sr-only                   visually hidden text (aria-live region)
  *   gf-icon                      inline SVG icon, sized 1em, stroke follows currentColor
@@ -21,93 +23,63 @@
  *     gf-btn--primary            filled accent button
  *     gf-btn--ghost              borderless button
  *     gf-btn--icon               square icon-only button (needs aria-label and title)
- *     gf-btn--compact            small toolbar button
+ *     gf-btn--compact            small button
  *   gf-link-btn                  text-style button (Part name inside the interlock banner)
+ *   gf-kbd                       keyboard key cap
  *
- * Header bar
- *   gf-header                    top bar
- *   gf-header__brand             title block
- *   gf-header__title             application name
- *   gf-header__subtitle          small monospace caption
- *   gf-header__group             one control cluster (label + control)
- *   gf-header__spacer            flexible gap
- *   gf-field                     label + control pair
- *   gf-field__label              small caption above or beside a control
- *   gf-select                    native select (kit selector)
- *   gf-file-input                visually hidden file input; the label uses gf-btn
- *   gf-hero                      hero toggle group (role group)
- *     gf-hero__option            toggle button; aria-pressed="true" marks the active one
- *   gf-clash                     clash badge (monospace)
- *     gf-clash--ok | --bad | --warn | --idle
- *     gf-clash__icon             leading status icon
- *     gf-clash__text             badge text
+ * Header bar (one row from 1200px up)
+ *   gf-header, gf-header__brand, gf-header__title, gf-header__subtitle,
+ *   gf-header__group, gf-header__spacer
+ *   gf-field, gf-field__label, gf-select, gf-file-input
+ *   gf-hero                      pill segmented control; gf-hero__option[data-mode="dbg|naive"]
+ *   gf-clash                     clash badge (monospace pill); --ok | --bad | --warn | --idle
+ *     gf-clash__icon, gf-clash__text
  *
- * Strips under the header
- *   gf-progress                  progress strip (list of chips)
- *     gf-progress__chip          one stage chip
- *       gf-progress__chip--pending | --started | --completed
- *     gf-progress__name          stage name
- *     gf-progress__state         started or completed text
- *     gf-progress__ms            elapsed milliseconds
- *   gf-status-line               visible status text (same message as the live region)
- *   gf-notice                    notice bar
- *     gf-notice--warn | --info
- *     gf-notice__icon, gf-notice__text, gf-notice__actions
- *   gf-recovery                  recovery card (tabindex -1, receives focus)
- *     gf-recovery__icon, gf-recovery__heading, gf-recovery__body,
- *     gf-recovery__details (list), gf-recovery__actions
+ * Notices
+ *   gf-notice (--warn | --info), gf-notice__icon, gf-notice__text, gf-notice__actions
+ *   gf-recovery, gf-recovery__icon, __heading, __body, __details, __actions
  *
  * Viewport column
- *   gf-viewport                  column: toolbar, stage, timeline
- *   gf-toolbar                   view buttons and playback row
- *     gf-toolbar__group          cluster of buttons
- *     gf-toolbar__label          caption for a slider
- *     gf-toolbar__value          monospace readout
- *   gf-slider                    range input (explode slider, timeline slider)
- *   gf-dropzone                  wrapper around the stage that accepts file drops
- *     gf-dropzone--active        file dragged over: dashed outline and label
- *     gf-dropzone__label         the visible drop text
- *   gf-viewport__stage           canvas host with the drafting grid
+ *   gf-viewport                  column: stage with overlays, timeline bar, caption bar
+ *   gf-dropzone                  wrapper that accepts file drops and anchors the overlays
+ *     gf-dropzone--active, gf-dropzone__label
+ *   gf-viewport__stage           canvas host with the studio backdrop
  *   gf-viewport__canvas          the WebGL canvas
- *   gf-viewport__loading         loading text over the stage
- *   gf-leader-label              CSS2D label for the leader spline step number
- *   gf-webgl-unavailable         text panel shown when WebGL cannot start
- *     gf-webgl-unavailable__heading, gf-webgl-unavailable__body
- *   gf-timeline                  step timeline
- *     gf-timeline__track         relative box holding slider and ticks
- *     gf-timeline__ticks         tick row (one tick per Step)
- *     gf-timeline__tick          one tick; gf-timeline__tick-label holds its number
- *     gf-timeline__reason        visible reason text when the timeline is disabled
+ *   gf-viewport__loading         loading chip in the centre of the stage
+ *   gf-leader-label             CSS2D label for the leader spline step number
+ *   gf-webgl-unavailable (+ __heading, __body)
+ *
+ * Floating overlays on the 3D view
+ *   gf-hud, gf-hud--top-left     overlay anchor; children take pointer events, the rest passes through
+ *   gf-glass, gf-glass__btn      frosted-glass pill group and its buttons
+ *   gf-pipeline                  pipeline telemetry layer
+ *     gf-pipeline__bar, __fill   thin animated strip while solving
+ *     gf-pipeline__chip, __spinner   active stage label while solving
+ *     gf-pipeline__pill-wrap, __pill, __chevron, __panel   the "Pipeline · 5.1s" pill and its breakdown
+ *     gf-pipeline__stages, __stage (+ __stage-id, __stage-name, __stage-ms, __stage-bar), __total
+ *   gf-compare                   comparison telemetry card, bottom-left
+ *     gf-compare__cell (--dbg | --naive), __label, __value, __vs
+ *   gf-toast-slot, gf-toast (--ok | --info | --warn)   transient toast, bottom-right
+ *
+ * Timeline bar
+ *   gf-timeline                  bar under the canvas
+ *     gf-transport, gf-transport__btn (--play)
+ *     gf-timeline__main, __head, __label, __value, __reasons, __reason
+ *     gf-timeline__track         holds the custom track and the ticks
+ *     gf-timeline__ticks, __tick, __tick-label
+ *   gf-slider, gf-slider--blueprint   range input with the blueprint track
+ *   gf-caption                   step caption bar under the timeline
  *
  * Manifest panel
- *   gf-manifest                  right-hand aside
- *     gf-manifest__header, gf-manifest__title, gf-manifest__body
- *     gf-manifest__empty         empty state text
- *     gf-manifest__section       titled block; gf-manifest__heading is its heading
- *   gf-bom                       bill of materials summary
- *     gf-bom__item, gf-bom__value (monospace), gf-bom__label
- *   gf-callout                   status callout with icon and text
- *     gf-callout--ok | --bad | --warn | --muted
- *     gf-callout__icon, gf-callout__text
- *   gf-steps                     ordered list of step rows
- *   gf-step                      step row button; aria-current="step" marks the selection
- *     gf-step--uncompiled        peeled step without a primitive (deadlocked plan)
- *     gf-step--obstructed        naive mode, clashCount above 0
- *     gf-step--interlocked       deadlocked part row
- *     gf-step__num               step number (monospace)
- *     gf-step__name              part name
- *     gf-step__dist              escape distance (monospace)
- *     gf-step__flag              text label with icon: Obstructed or Interlocked
- *     gf-step__clashes           per-part clash count (monospace)
- *   gf-prim                      primitive badge (monospace)
- *     gf-prim--helical | --slide | --other | --uncompiled
- *   gf-locked                    Locked Parts list; gf-locked__item is one row
- *
- * Interlock banner
- *   gf-interlock                 banner; gf-interlock__heading, gf-interlock__summary,
- *                                gf-interlock__cycles (ol), gf-interlock__cycle (li),
- *                                gf-interlock__parts, gf-interlock__edges, gf-interlock__edge,
- *                                gf-interlock__close
+ *   gf-manifest (+ __header, __title, __body, __summary, __steps, __heading, __count,
+ *                  __empty, __section, __pinned)
+ *   gf-bom, gf-bom__item (--parts | --helical | --linear | --other), __value, __label
+ *   gf-callout (--ok | --bad | --warn | --muted)
+ *   gf-steps-scroll, gf-steps, gf-step (+ --uncompiled | --obstructed | --interlocked)
+ *   gf-prim (--helical | --slide | --other | --uncompiled)
+ *   gf-locked
+ *   gf-notes                     Step Notes card (+ __head, __title, __sub, __toggle, __body, __foot)
+ *   gf-interlock
  *
  * Reduced motion: the media query at the end removes all transitions and animations.
  */
@@ -131,17 +103,6 @@ body {
   line-height: 1.45;
   color: var(--text);
   background-color: var(--canvas);
-  /* Faint 8px drafting grid with a heavier line every 64px. */
-  background-image:
-    linear-gradient(var(--grid-major) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
-    linear-gradient(var(--grid-minor) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
-  background-size:
-    calc(var(--grid-unit) * 8) calc(var(--grid-unit) * 8),
-    calc(var(--grid-unit) * 8) calc(var(--grid-unit) * 8),
-    var(--grid-unit) var(--grid-unit),
-    var(--grid-unit) var(--grid-unit);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -196,6 +157,17 @@ ul {
   stroke-linejoin: miter;
 }
 
+.gf-kbd {
+  padding: 0 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 16px;
+  color: var(--muted);
+  background: var(--slate-bg);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: 4px;
+}
+
 /* ------------------------------------------------------------------ */
 /* Buttons and form controls                                           */
 /* ------------------------------------------------------------------ */
@@ -204,30 +176,37 @@ ul {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: 6px;
   min-height: 32px;
   padding: 0 var(--space-3);
   font: inherit;
+  font-size: 13px;
   font-weight: 600;
   color: var(--accent);
   background: var(--panel);
-  border: var(--rule-width) solid var(--accent);
+  border: var(--rule-width) solid var(--hairline);
   border-radius: var(--radius);
   cursor: pointer;
-  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
+  transition:
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
 }
 
 .gf-btn:hover:not(:disabled):not([aria-disabled="true"]) {
-  background: var(--accent-soft);
+  background: var(--hover);
+  border-color: var(--rule-strong);
 }
 
 .gf-btn--primary {
   color: var(--on-accent);
   background: var(--accent);
+  border-color: var(--accent);
 }
 
 .gf-btn--primary:hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .gf-btn--ghost {
@@ -243,17 +222,22 @@ ul {
 .gf-btn--compact {
   min-height: 28px;
   padding: 0 var(--space-2);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .gf-btn:disabled,
-.gf-btn[aria-disabled="true"],
-.gf-hero__option:disabled {
+.gf-btn[aria-disabled="true"] {
   color: var(--muted);
   background: var(--canvas);
   border-style: dashed;
-  border-color: var(--rule);
+  border-color: var(--rule-strong);
   cursor: not-allowed;
+}
+
+.gf-btn[aria-pressed="true"]:not(:disabled) {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .gf-link-btn {
@@ -275,8 +259,8 @@ ul {
 
 .gf-field__label {
   font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -285,10 +269,15 @@ ul {
   min-height: 32px;
   padding: 0 var(--space-2);
   font: inherit;
+  font-size: 13px;
   color: var(--text);
   background: var(--panel);
-  border: var(--rule-width) solid var(--accent);
+  border: var(--rule-width) solid var(--hairline);
   border-radius: var(--radius);
+}
+
+.gf-select:hover:not(:disabled) {
+  border-color: var(--rule-strong);
 }
 
 .gf-select:disabled {
@@ -309,17 +298,6 @@ ul {
 .gf-file-input:focus-visible + .gf-btn {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-.gf-slider {
-  flex: 1 1 120px;
-  min-width: 96px;
-  accent-color: var(--accent);
-}
-
-.gf-slider:disabled {
-  accent-color: var(--muted);
-  cursor: not-allowed;
 }
 
 /* ------------------------------------------------------------------ */
@@ -346,32 +324,37 @@ ul {
 /* ------------------------------------------------------------------ */
 
 .gf-header {
+  position: relative;
+  z-index: 5;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2) 10px;
+  padding: var(--space-2) var(--space-4);
   background: var(--panel);
-  border-bottom: 2px solid var(--accent);
+  border-bottom: var(--rule-width) solid var(--hairline);
+  box-shadow: var(--elevation);
 }
 
 .gf-header__brand {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  line-height: 1.15;
 }
 
 .gf-header__title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   color: var(--accent);
 }
 
 .gf-header__subtitle {
+  display: none;
   font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -381,10 +364,22 @@ ul {
   align-items: center;
   gap: var(--space-2);
 }
-/* Desktop: keep the header on one row. Below 1200px it wraps as before. */
+
+.gf-header > .gf-header__group:first-child {
+  color: var(--accent);
+}
+
+.gf-header__spacer {
+  flex: 1 1 0;
+}
+
+/* Desktop: keep the header on one row. Below 1200px it wraps. */
 @media (min-width: 1200px) {
   .gf-header {
     flex-wrap: nowrap;
+    height: 52px;
+    padding-top: 0;
+    padding-bottom: 0;
   }
   .gf-header > *,
   .gf-header__group {
@@ -395,74 +390,107 @@ ul {
     flex-shrink: 1;
     min-width: 0;
   }
+  /* The kit selector and the clash badge are the only parts that may shrink, so the longest
+     badge text ends before the right edge instead of pushing the export button out. */
+  .gf-header > .gf-field {
+    flex-shrink: 1;
+    min-width: 0;
+  }
   .gf-header .gf-select {
-    max-width: 200px;
+    width: clamp(120px, 13vw, 200px);
+    min-width: 0;
   }
-  .gf-header .gf-hero__option {
-    padding: 0 var(--space-3);
+  .gf-header > .gf-clash {
+    flex-shrink: 1;
+    min-width: 0;
   }
 }
 
-.gf-header__spacer {
-  flex: 1 1 0;
+/* Under 1440px the "KIT" caption is dropped from the row. The label stays for assistive tech. */
+@media (max-width: 1439px) {
+  .gf-header .gf-field__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }
 
-/* Hero toggle: a segmented control between the two modes. */
+@media (min-width: 1480px) {
+  .gf-header__subtitle {
+    display: block;
+  }
+}
+
+/* Hero toggle: a pill segmented control between the two modes. */
 .gf-hero {
   display: inline-flex;
-  border: 2px solid var(--accent);
-  border-radius: var(--radius);
-  background: var(--panel);
+  gap: 2px;
+  padding: 3px;
+  background: var(--slate-bg);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: var(--radius-pill);
 }
 
 .gf-hero__option {
-  min-height: 36px;
-  padding: 0 var(--space-4);
+  min-height: 28px;
+  padding: 0 14px;
   font: inherit;
-  font-weight: 700;
-  color: var(--accent);
-  background: var(--panel);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
   border: 0;
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
-}
-
-.gf-hero__option + .gf-hero__option {
-  border-left: 2px solid var(--accent);
+  transition:
+    background-color var(--duration) var(--ease),
+    color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
 }
 
 .gf-hero__option:hover:not(:disabled):not([aria-pressed="true"]) {
-  background: var(--accent-soft);
+  color: var(--text);
+  background: var(--panel);
 }
 
-.gf-hero__option[aria-pressed="true"] {
+/* Active segment: deep blueprint navy for DBG, vivid crimson for Naive. */
+.gf-hero__option[aria-pressed="true"][data-mode="dbg"] {
   color: var(--on-accent);
   background: var(--accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.gf-hero__option[aria-pressed="true"][data-mode="naive"] {
+  color: var(--on-crimson);
+  background: var(--crimson);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--crimson) 38%, transparent);
 }
 
 .gf-hero__option:disabled {
-  border-width: 0;
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
-.gf-hero__option:disabled + .gf-hero__option {
-  border-left: 2px dashed var(--rule);
-}
-
-/* Clash badge: monospace telemetry with a leading icon, so status is not colour only. */
+/* Clash badge: monospace telemetry pill with a leading icon, so status is not colour only. */
 .gf-clash {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 32px;
+  gap: 6px;
+  min-height: 30px;
+  min-width: 0;
   padding: 0 var(--space-3);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
   color: var(--muted);
   background: var(--panel);
-  border: var(--rule-width) solid currentColor;
-  border-radius: var(--radius);
+  border: var(--rule-width) solid color-mix(in srgb, currentColor 26%, transparent);
+  border-radius: var(--radius-pill);
 }
 
 .gf-clash--ok {
@@ -484,84 +512,38 @@ ul {
   color: var(--muted);
   background: var(--panel);
   border-style: dashed;
+  border-color: var(--rule-strong);
 }
 
 .gf-clash__icon {
-  font-size: 16px;
+  flex: none;
+  font-size: 15px;
+}
+
+.gf-clash__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ------------------------------------------------------------------ */
-/* Strips under the header                                             */
+/* Notices and recovery                                                */
 /* ------------------------------------------------------------------ */
-
-.gf-progress {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  background: var(--panel);
-  border-bottom: var(--rule-width) solid var(--rule);
-}
-
-.gf-progress__chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: 2px var(--space-2);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--muted);
-  background: var(--canvas);
-  border: var(--rule-width) dashed var(--rule-strong);
-  border-radius: var(--radius);
-}
-
-.gf-progress__chip--started {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-style: solid;
-  border-color: var(--accent);
-  animation: gf-chip-pulse 1.2s var(--ease) infinite alternate;
-}
-
-.gf-progress__chip--completed {
-  color: var(--ok);
-  background: var(--ok-bg);
-  border-style: solid;
-  border-color: var(--ok);
-}
-
-.gf-progress__name {
-  font-weight: 700;
-}
-
-.gf-progress__ms {
-  font-variant-numeric: tabular-nums;
-}
-
-.gf-status-line {
-  padding: var(--space-1) var(--space-4);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--muted);
-  background: var(--canvas);
-  border-bottom: var(--rule-width) solid var(--rule);
-}
 
 .gf-notice {
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: 10px var(--space-4);
   color: var(--accent);
   background: var(--accent-soft);
-  border-bottom: var(--rule-width) solid var(--accent);
+  border-bottom: var(--rule-width) solid var(--hairline);
 }
 
 .gf-notice--warn {
   color: var(--warn);
   background: var(--warn-bg);
-  border-bottom-color: var(--warn);
 }
 
 .gf-notice--info {
@@ -595,9 +577,9 @@ ul {
   padding: var(--space-4);
   color: var(--text);
   background: var(--panel);
-  border: 2px solid var(--accent);
-  border-radius: var(--radius);
-  box-shadow: 4px 4px 0 var(--shadow);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: 12px;
+  box-shadow: var(--elevation);
 }
 
 .gf-recovery__icon {
@@ -636,42 +618,6 @@ ul {
   min-height: 0;
 }
 
-.gf-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-  padding: var(--space-2) var(--space-4);
-  background: var(--panel);
-  border-bottom: var(--rule-width) solid var(--rule);
-}
-
-.gf-toolbar__group {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.gf-toolbar__group--grow {
-  flex: 1 1 200px;
-}
-
-.gf-toolbar__label {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.gf-toolbar__value {
-  min-width: 4ch;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-
 .gf-dropzone {
   position: relative;
   flex: 1 1 auto;
@@ -683,7 +629,7 @@ ul {
   display: none;
   position: absolute;
   inset: var(--space-3);
-  z-index: 3;
+  z-index: 6;
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
@@ -693,8 +639,8 @@ ul {
   text-align: center;
   color: var(--accent);
   background: var(--scrim);
-  border: 3px dashed var(--accent);
-  border-radius: var(--radius);
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
   pointer-events: none;
 }
 
@@ -702,23 +648,20 @@ ul {
   display: flex;
 }
 
+/* Studio backdrop: light in the middle, a cooler tone at the edges. The 3D canvas paints the same
+   gradient, so this shows only before the first frame and when WebGL is unavailable. */
 .gf-viewport__stage {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background-color: var(--canvas);
-  background-image:
-    linear-gradient(var(--grid-major) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
-    linear-gradient(var(--grid-minor) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
-  background-size:
-    calc(var(--grid-unit) * 8) calc(var(--grid-unit) * 8),
-    calc(var(--grid-unit) * 8) calc(var(--grid-unit) * 8),
-    var(--grid-unit) var(--grid-unit),
-    var(--grid-unit) var(--grid-unit);
+  background-color: var(--studio-edge);
+  background-image: radial-gradient(
+    ellipse at center,
+    var(--studio-center) 0%,
+    var(--studio-edge) 100%
+  );
 }
 
 .gf-viewport__canvas {
@@ -732,16 +675,20 @@ ul {
 
 .gf-viewport__loading {
   position: absolute;
-  top: var(--space-3);
-  left: var(--space-3);
+  top: 50%;
+  left: 50%;
   z-index: 2;
-  padding: var(--space-1) var(--space-3);
+  transform: translate(-50%, -50%);
+  padding: 6px var(--space-4);
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--accent);
-  background: var(--panel);
-  border: var(--rule-width) solid var(--accent);
-  border-radius: var(--radius);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--elevation);
 }
 
 .gf-leader-label {
@@ -751,7 +698,7 @@ ul {
   font-weight: 700;
   color: var(--on-accent);
   background: var(--accent);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   pointer-events: none;
   user-select: none;
 }
@@ -768,8 +715,8 @@ ul {
   text-align: center;
   color: var(--text);
   background: var(--panel);
-  border: 2px dashed var(--accent);
-  border-radius: var(--radius);
+  border: 1px dashed var(--rule-strong);
+  border-radius: 12px;
 }
 
 .gf-webgl-unavailable__heading {
@@ -783,69 +730,802 @@ ul {
   color: var(--muted);
 }
 
-/* Step timeline */
-.gf-timeline {
+/* ------------------------------------------------------------------ */
+/* Floating overlays on the 3D view                                    */
+/* ------------------------------------------------------------------ */
+
+/* The anchor lets the canvas keep every click, drag and wheel outside the controls themselves. */
+.gf-hud {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.gf-hud > * {
+  pointer-events: auto;
+}
+
+.gf-hud--top-left {
+  top: var(--space-3);
+  left: var(--space-3);
+  max-width: calc(100% - 2 * var(--space-3));
+}
+
+/* Frosted glass pill: translucent white over the studio backdrop. */
+.gf-glass,
+.gf-pipeline__chip,
+.gf-pipeline__pill {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: var(--rule-width) solid var(--hairline);
+  box-shadow: var(--elevation), inset 0 0 0 1px var(--glass-edge);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .gf-glass,
+  .gf-pipeline__chip,
+  .gf-pipeline__pill {
+    background: var(--panel);
+  }
+}
+
+.gf-glass {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+}
+
+.gf-glass__btn {
+  min-height: 26px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition:
+    background-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
+}
+
+.gf-glass__btn:hover:not(:disabled):not([aria-pressed="true"]) {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.gf-glass__btn[aria-pressed="true"] {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+/* The reason is in the title and in the timeline bar's reason line, so grey is not the only cue. */
+.gf-glass__btn:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* Pipeline telemetry --------------------------------------------------- */
+
+.gf-pipeline {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.gf-pipeline__bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  overflow: hidden;
+  background: var(--track);
+}
+
+.gf-pipeline__fill {
+  position: relative;
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  background: var(--accent);
+  border-radius: 0 3px 3px 0;
+  transition: width 320ms var(--ease);
+}
+
+.gf-pipeline__fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--on-accent) 55%, transparent) 50%,
+    transparent 100%
+  );
+  animation: gf-shimmer 1.1s linear infinite;
+}
+
+.gf-pipeline__chip {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 46%;
+  min-height: 30px;
+  padding: 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  border-radius: var(--radius-pill);
+}
+
+.gf-pipeline__chip > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gf-pipeline__spinner {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--track);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: gf-spin 0.8s linear infinite;
+}
+
+.gf-pipeline__pill-wrap {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-4) var(--space-3);
+  align-items: flex-end;
+  gap: var(--space-2);
+  pointer-events: auto;
+}
+
+.gf-pipeline__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.gf-pipeline__pill:hover {
+  border-color: var(--rule-strong);
+}
+
+.gf-pipeline__chevron {
+  transition: transform var(--duration) var(--ease);
+}
+
+.gf-pipeline__pill[aria-expanded="true"] .gf-pipeline__chevron {
+  transform: rotate(180deg);
+}
+
+.gf-pipeline__panel {
+  width: 320px;
+  max-width: calc(100vw - 2 * var(--space-5));
+  padding: var(--space-3);
   background: var(--panel);
-  border-top: var(--rule-width) solid var(--rule);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: 12px;
+  box-shadow: var(--elevation-lift);
 }
 
-.gf-timeline__track {
-  position: relative;
+.gf-pipeline__panel[hidden] {
+  display: none;
 }
 
-.gf-timeline__track .gf-slider {
+.gf-pipeline__stages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gf-pipeline__stage {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "id name ms"
+    "bar bar bar";
+  align-items: baseline;
+  gap: 3px var(--space-2);
+}
+
+.gf-pipeline__stage-id {
+  grid-area: id;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.gf-pipeline__stage-name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gf-pipeline__stage-ms {
+  grid-area: ms;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.gf-pipeline__stage[data-state="skipped"] .gf-pipeline__stage-ms,
+.gf-pipeline__stage[data-state="pending"] .gf-pipeline__stage-ms {
+  color: var(--muted);
+}
+
+.gf-pipeline__stage-bar {
+  grid-area: bar;
   display: block;
-  width: 100%;
-  margin: 0;
+  height: 3px;
+  overflow: hidden;
+  background: var(--track);
+  border-radius: 2px;
 }
 
-.gf-timeline__ticks {
+.gf-pipeline__stage-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.gf-pipeline__total {
   display: flex;
   justify-content: space-between;
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  border-top: var(--rule-width) solid var(--hairline);
 }
 
-.gf-timeline__tick {
+/* Comparison telemetry card ---------------------------------------------- */
+
+.gf-compare {
+  position: absolute;
+  bottom: var(--space-3);
+  left: var(--space-3);
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  max-width: calc(100% - 2 * var(--space-3));
+  overflow: hidden;
+  background: var(--panel);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: 12px;
+  box-shadow: var(--elevation);
+}
+
+.gf-compare__cell {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  flex: 1 1 0;
+  gap: 2px;
   min-width: 0;
-  border-left: var(--rule-width) solid var(--rule-strong);
-  padding-top: 2px;
+  padding: 8px var(--space-3);
+  transition: background-color var(--duration) var(--ease);
 }
 
-.gf-timeline__tick-label {
+.gf-compare__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted);
+}
+
+.gf-compare__value {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gf-compare__cell--dbg .gf-compare__value {
+  color: var(--ok);
+}
+
+.gf-compare__cell--dbg .gf-compare__label svg {
+  color: var(--ok);
+}
+
+.gf-compare__cell--dbg[data-verified="false"] .gf-compare__value,
+.gf-compare__cell--dbg[data-verified="false"] .gf-compare__label svg {
+  color: var(--bad);
+}
+
+.gf-compare__cell--naive .gf-compare__value {
+  color: var(--bad);
+}
+
+.gf-compare__cell--naive .gf-compare__label svg {
+  color: var(--crimson);
+}
+
+.gf-compare__cell[data-active="true"].gf-compare__cell--dbg {
+  background: var(--ok-bg);
+}
+
+.gf-compare__cell[data-active="true"].gf-compare__cell--naive {
+  background: var(--bad-bg);
+}
+
+.gf-compare__vs {
+  align-self: center;
+  padding: 0 2px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Toast ---------------------------------------------------------------- */
+
+.gf-toast-slot {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 4;
+  max-width: calc(100% - 2 * var(--space-3));
+  pointer-events: none;
+}
+
+.gf-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: 8px var(--space-4) 8px var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--elevation-lift);
+  animation:
+    gf-toast-in 220ms var(--ease) both,
+    gf-toast-out 300ms ease-in 3300ms forwards;
+}
+
+.gf-toast > svg {
+  flex: none;
+}
+
+.gf-toast--ok > svg {
+  color: var(--ok);
+}
+
+.gf-toast--info > svg {
+  color: var(--accent);
+}
+
+.gf-toast--warn > svg {
+  color: var(--crimson);
+}
+
+/* ------------------------------------------------------------------ */
+/* Timeline bar: transport buttons and the blueprint track             */
+/* ------------------------------------------------------------------ */
+
+.gf-timeline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  background: var(--panel);
+  border-top: var(--rule-width) solid var(--hairline);
+}
+
+.gf-transport {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+}
+
+.gf-transport__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease);
+}
+
+.gf-transport__btn:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--rule-strong);
+}
+
+.gf-transport__btn--play {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.gf-transport__btn--play:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.gf-transport__btn--play .gf-kbd {
+  color: var(--on-accent);
+  background: color-mix(in srgb, var(--on-accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--on-accent) 30%, transparent);
+}
+
+.gf-transport__btn:disabled {
+  color: var(--muted);
+  background: var(--canvas);
+  border-style: dashed;
+  border-color: var(--rule-strong);
+  cursor: not-allowed;
+}
+
+.gf-transport__btn:disabled .gf-kbd {
+  color: var(--muted);
+  background: transparent;
+  border-color: var(--hairline);
+}
+
+.gf-timeline__main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.gf-timeline__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-height: 16px;
+}
+
+.gf-timeline__label {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.gf-timeline__value {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* One reserved line, so a reason appearing or vanishing never moves the canvas. */
+.gf-timeline__reasons {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .gf-timeline__reason {
   min-width: 0;
   overflow: hidden;
   font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 18px;
-  white-space: nowrap;
+  font-size: 11px;
   text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--muted);
 }
-/* One reserved line, so a reason appearing or vanishing never moves the canvas. */
-.gf-toolbar__reasons,
-.gf-timeline__reason-slot {
-  display: flex;
-  gap: var(--space-4);
-  min-height: 18px;
-  overflow: hidden;
+
+.gf-timeline__track {
+  --thumb: 16px;
+  position: relative;
 }
-.gf-toolbar__reasons {
-  flex: 1 1 100%;
+
+/* Blueprint track: a hairline rail with a navy fill up to the thumb and a ringed round thumb.
+   `--fill` is the position as a number from 0 to 1. The fill stop accounts for the thumb travel,
+   so the fill always ends under the thumb centre. */
+.gf-slider {
+  flex: 1 1 120px;
+  min-width: 96px;
+  accent-color: var(--accent);
+}
+
+.gf-slider:disabled {
+  accent-color: var(--muted);
+  cursor: not-allowed;
+}
+
+.gf-slider--blueprint {
+  --bar: var(--accent);
+  --stop: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--fill, 0));
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.gf-timeline[data-mode="naive"] .gf-slider--blueprint {
+  --bar: var(--crimson);
+}
+
+.gf-slider--blueprint::-webkit-slider-runnable-track {
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    var(--bar) 0,
+    var(--bar) var(--stop),
+    var(--track) var(--stop),
+    var(--track) 100%
+  );
+  border-radius: var(--radius-pill);
+}
+
+.gf-slider--blueprint::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc((4px - var(--thumb)) / 2);
+  background: var(--panel);
+  border: 3px solid var(--bar);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px var(--shadow);
+  transition: transform var(--duration) var(--ease);
+}
+
+.gf-slider--blueprint:hover:not(:disabled)::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+
+.gf-slider--blueprint::-moz-range-track {
+  height: 4px;
+  background: var(--track);
+  border-radius: var(--radius-pill);
+}
+
+.gf-slider--blueprint::-moz-range-progress {
+  height: 4px;
+  background: var(--bar);
+  border-radius: var(--radius-pill);
+}
+
+.gf-slider--blueprint::-moz-range-thumb {
+  box-sizing: border-box;
+  width: var(--thumb);
+  height: var(--thumb);
+  background: var(--panel);
+  border: 3px solid var(--bar);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px var(--shadow);
+}
+
+/* Same specificity as the Naive override above and later in the file, so a disabled track is always grey. */
+.gf-timeline .gf-slider--blueprint:disabled {
+  --bar: var(--rule-strong);
+  cursor: not-allowed;
+}
+
+/* Ticks sit under the track, inset by half a thumb so they line up with the thumb travel. */
+.gf-timeline__ticks {
+  display: flex;
+  min-height: 17px;
+  margin: 0 calc(var(--thumb) / 2);
+}
+
+.gf-timeline__tick {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  justify-content: center;
+  min-width: 0;
+  padding-top: 5px;
+}
+
+.gf-timeline__tick::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 4px;
+  background: var(--hairline);
+}
+
+.gf-timeline__tick:last-child::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 4px;
+  background: var(--hairline);
+}
+
+.gf-timeline__tick-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ */
+/* Step caption bar                                                    */
+/* ------------------------------------------------------------------ */
+
+.gf-caption {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px var(--space-4);
+  padding: 10px var(--space-4) var(--space-2);
+  background: var(--panel);
+  border-top: var(--rule-width) solid var(--hairline);
+}
+
+.gf-caption__main {
+  min-width: 0;
+}
+
+.gf-caption__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  max-width: 260px;
+}
+
+.gf-caption__step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.gf-caption__badge {
+  padding: 1px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--radius-pill);
+}
+
+.gf-caption__part {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.gf-caption__text {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.gf-caption__text--idle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.gf-caption__note {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--accent);
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.gf-caption__reason {
+  margin: 0;
+  font-size: 12px;
+  text-align: right;
+  color: var(--muted);
+}
+
+.gf-caption__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gf-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 1px 10px;
+  font-size: 12.5px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: var(--radius-pill);
+}
+
+.gf-tag__key {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gf-tag--warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.gf-shortcuts {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--space-4);
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted);
 }
 
 /* ------------------------------------------------------------------ */
@@ -858,49 +1538,67 @@ ul {
   min-width: 0;
   min-height: 0;
   background: var(--panel);
-  border-left: 2px solid var(--accent);
+  border-left: var(--rule-width) solid var(--hairline);
 }
 
 .gf-manifest__header {
+  flex: none;
   padding: var(--space-3) var(--space-4);
-  border-bottom: var(--rule-width) solid var(--rule);
+  border-bottom: var(--rule-width) solid var(--hairline);
 }
 
 .gf-manifest__title {
-  font-size: 15px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--accent);
 }
 
 .gf-manifest__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--space-3) var(--space-4) var(--space-5);
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--space-4);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gf-manifest__summary {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 46%;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  overflow-y: auto;
+}
+
+.gf-manifest__steps {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .gf-steps-scroll {
-  max-height: min(34vh, 320px);
+  flex: 1 1 auto;
   min-height: 0;
+  padding: 0 var(--space-2) var(--space-2);
   overflow-y: auto;
-  padding-right: var(--space-1);
-  border: var(--rule-width) solid var(--rule);
-  border-radius: var(--radius);
 }
+
 .gf-manifest__pinned {
   flex: 0 0 auto;
-  max-height: 46%;
+  max-height: 52%;
   overflow-y: auto;
-  padding: var(--space-3) var(--space-4);
   background: var(--panel);
-  border-top: 2px solid var(--accent);
+  border-top: var(--rule-width) solid var(--hairline);
+  box-shadow: 0 -4px 16px var(--shadow);
 }
+
 .gf-manifest__empty {
+  margin: var(--space-3);
   padding: var(--space-4);
   color: var(--muted);
   border: var(--rule-width) dashed var(--rule-strong);
@@ -914,45 +1612,76 @@ ul {
 }
 
 .gf-manifest__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4) 6px;
   font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
-/* Bill of materials */
+.gf-manifest__count {
+  padding: 0 7px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--radius-pill);
+}
+
+/* Metric strip: Parts, Helical, Linear (and Other when a plan has one). */
 .gf-bom {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: var(--rule-width) solid var(--accent);
-  border-radius: var(--radius);
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  overflow: hidden;
+  background: var(--panel);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: 10px;
 }
 
 .gf-bom__item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: var(--space-2) var(--space-1);
+  gap: 1px;
+  padding: 7px var(--space-1);
   text-align: center;
 }
 
 .gf-bom__item + .gf-bom__item {
-  border-left: var(--rule-width) solid var(--rule);
+  border-left: var(--rule-width) solid var(--hairline);
 }
 
 .gf-bom__value {
   font-family: var(--font-mono);
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
   color: var(--accent);
 }
 
+.gf-bom__item--helical .gf-bom__value {
+  color: var(--teal);
+}
+
+.gf-bom__item--linear .gf-bom__value {
+  color: var(--muted);
+}
+
+.gf-bom__item--other .gf-bom__value {
+  color: var(--indigo);
+}
+
 .gf-bom__label {
-  font-size: 11px;
-  line-height: 1.2;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -964,8 +1693,8 @@ ul {
   padding: var(--space-2) var(--space-3);
   color: var(--muted);
   background: var(--panel);
-  border: var(--rule-width) solid currentColor;
-  border-left-width: 4px;
+  border: var(--rule-width) solid color-mix(in srgb, currentColor 24%, transparent);
+  border-left: 3px solid currentColor;
   border-radius: var(--radius);
 }
 
@@ -996,55 +1725,80 @@ ul {
 }
 
 .gf-callout__text {
-  font-weight: 600;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
 }
 
-/* Step rows */
+.gf-callout__detail {
+  font-weight: 400;
+  color: var(--text);
+}
+
+/* Step rows: cardless, with a hover wash and a colour bar for the state. */
 .gf-steps {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 1px;
 }
 
 .gf-step {
+  position: relative;
   display: grid;
-  grid-template-columns: 3ch minmax(0, 1fr) auto;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
   grid-template-areas:
     "num name badge"
     "num dist flag";
   align-items: center;
-  gap: 2px var(--space-3);
+  gap: 1px 10px;
   width: 100%;
-  padding: var(--space-2) var(--space-3);
+  padding: 7px 10px 7px 12px;
   font: inherit;
   text-align: left;
   color: var(--text);
-  background: var(--panel);
-  border: var(--rule-width) solid var(--rule);
-  border-left: 4px solid var(--rule-strong);
+  background: transparent;
+  border: 0;
   border-radius: var(--radius);
   cursor: pointer;
-  transition: background-color var(--duration) var(--ease), border-color var(--duration) var(--ease);
+  transition: background-color var(--duration) var(--ease);
+}
+
+.gf-step::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 3px;
+  background: transparent;
+  border-radius: 2px;
+  transition: background-color var(--duration) var(--ease);
 }
 
 .gf-step:hover {
-  background: var(--accent-soft);
+  background: var(--hover);
 }
 
 .gf-step[aria-current="step"],
 .gf-step.is-selected {
   background: var(--accent-soft);
-  border-color: var(--accent);
-  border-left-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.gf-step[aria-current="step"]::before,
+.gf-step.is-selected::before {
+  background: var(--accent);
 }
 
 .gf-step__num {
   grid-area: num;
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.gf-step[aria-current="step"] .gf-step__num {
   color: var(--accent);
 }
 
@@ -1052,6 +1806,7 @@ ul {
   grid-area: name;
   min-width: 0;
   overflow: hidden;
+  font-size: 13.5px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1065,7 +1820,7 @@ ul {
 .gf-step__dist {
   grid-area: dist;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
@@ -1077,7 +1832,7 @@ ul {
   align-items: center;
   gap: var(--space-1);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1085,12 +1840,12 @@ ul {
 
 .gf-step__clashes {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
 
-.gf-step--obstructed {
-  border-left-color: var(--bad);
+.gf-step--obstructed::before {
+  background: var(--crimson);
 }
 
 .gf-step--obstructed .gf-step__flag,
@@ -1098,8 +1853,8 @@ ul {
   color: var(--bad);
 }
 
-.gf-step--interlocked {
-  border-left-color: var(--warn);
+.gf-step--interlocked::before {
+  background: var(--warn);
 }
 
 .gf-step--interlocked .gf-step__flag {
@@ -1110,38 +1865,38 @@ ul {
   color: var(--muted);
 }
 
-/* Primitive badges */
+/* Primitive badges: helical teal, linear slate, anything else indigo. */
 .gf-prim {
   display: inline-block;
-  padding: 1px var(--space-2);
+  padding: 1px 9px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   white-space: nowrap;
   color: var(--accent);
   background: var(--accent-soft);
-  border: var(--rule-width) solid var(--accent);
-  border-radius: var(--radius);
+  border: var(--rule-width) solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: var(--radius-pill);
 }
 
 .gf-prim--helical {
-  color: var(--on-accent);
-  background: var(--accent);
+  color: var(--teal);
+  background: var(--teal-bg);
 }
 
 .gf-prim--slide {
-  color: var(--accent);
-  background: var(--panel);
+  color: var(--muted);
+  background: var(--slate-bg);
 }
 
 .gf-prim--other {
-  color: var(--accent);
-  background: var(--accent-soft);
+  color: var(--indigo);
+  background: var(--indigo-bg);
 }
 
 .gf-prim--uncompiled {
   color: var(--muted);
-  background: var(--panel);
+  background: transparent;
   border-style: dashed;
   border-color: var(--rule-strong);
 }
@@ -1151,17 +1906,178 @@ ul {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  padding: 0 var(--space-2);
 }
 
 .gf-locked__item {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
+  padding: 6px var(--space-3);
   color: var(--text);
-  border: var(--rule-width) solid var(--rule);
-  border-left: 4px solid var(--warn);
+  background: var(--warn-bg);
   border-radius: var(--radius);
+}
+
+.gf-locked__item .gf-step__flag {
+  margin-left: auto;
+  color: var(--warn);
+}
+
+/* Step Notes card, pinned under the list ----------------------------- */
+
+.gf-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.gf-notes--idle {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.gf-notes__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.gf-notes__title {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.gf-notes__sub {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+}
+
+.gf-notes__hint {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.gf-notes__toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--accent);
+  background: transparent;
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.gf-notes__toggle:hover {
+  background: var(--hover);
+}
+
+.gf-notes__toggle svg {
+  transition: transform var(--duration) var(--ease);
+}
+
+.gf-notes__toggle[data-open="false"] svg {
+  transform: rotate(180deg);
+}
+
+.gf-notes__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-2) 10px;
+}
+
+.gf-notes__body[hidden] {
+  display: none;
+}
+
+.gf-notes .gf-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.gf-field--wide,
+.gf-notes__foot {
+  grid-column: 1 / -1;
+}
+
+.gf-notes__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.gf-chip {
+  padding: 1px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.gf-chip:hover {
+  background: var(--hover);
+}
+
+.gf-chip[aria-pressed="true"] {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.gf-input {
+  min-height: 30px;
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--hairline);
+  border-radius: var(--radius);
+}
+
+.gf-input:hover {
+  border-color: var(--rule-strong);
+}
+
+.gf-input--area {
+  resize: vertical;
+}
+
+.gf-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  cursor: pointer;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1176,15 +2092,15 @@ ul {
   padding: var(--space-3) var(--space-4);
   color: var(--text);
   background: var(--warn-bg);
-  border: 2px solid var(--warn);
-  border-radius: var(--radius);
+  border: var(--rule-width) solid color-mix(in srgb, var(--warn) 40%, var(--hairline));
+  border-radius: 12px;
 }
 
 .gf-interlock__heading {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--warn);
 }
@@ -1205,7 +2121,7 @@ ul {
 .gf-interlock__cycle {
   padding: var(--space-2);
   background: var(--panel);
-  border: var(--rule-width) solid var(--warn);
+  border: var(--rule-width) solid color-mix(in srgb, var(--warn) 40%, var(--hairline));
   border-radius: var(--radius);
 }
 
@@ -1239,12 +2155,36 @@ ul {
 /* Animations                                                          */
 /* ------------------------------------------------------------------ */
 
-@keyframes gf-chip-pulse {
+@keyframes gf-shimmer {
   from {
-    box-shadow: 0 0 0 0 var(--shadow);
+    transform: translateX(-100%);
   }
   to {
-    box-shadow: 0 0 0 3px var(--shadow);
+    transform: translateX(100%);
+  }
+}
+
+@keyframes gf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gf-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gf-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(4px);
   }
 }
 
@@ -1266,9 +2206,39 @@ ul {
     min-height: 60vh;
   }
 
+  .gf-timeline {
+    flex-wrap: wrap;
+  }
+
+  .gf-timeline__main {
+    flex-basis: 100%;
+  }
+
   .gf-manifest {
+    border-top: var(--rule-width) solid var(--hairline);
     border-left: 0;
-    border-top: 2px solid var(--accent);
+  }
+
+  .gf-manifest__body {
+    overflow: visible;
+  }
+
+  .gf-manifest__summary {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .gf-steps-scroll {
+    max-height: 50vh;
+  }
+
+  .gf-manifest__pinned {
+    max-height: none;
+  }
+
+  .gf-pipeline__chip {
+    max-width: calc(100% - 2 * var(--space-3));
+    top: 52px;
   }
 }
 
@@ -1284,189 +2254,4 @@ ul {
     transition: none !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* Manifest panel additions: callout detail text and locked-part rows. */
-.gf-callout__text {
-  margin: 0;
-}
-
-.gf-callout__detail {
-  font-weight: 400;
-  color: var(--text);
-}
-
-.gf-locked__item .gf-step__flag {
-  margin-left: auto;
-}
-
-/* ------------------------------------------------------------------ */
-/* Part 2: step caption bar, shortcuts, authoring editor, export        */
-/* ------------------------------------------------------------------ */
-.gf-caption {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-2) var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--panel);
-  border-top: 2px solid var(--accent);
-}
-.gf-caption__main {
-  min-width: 0;
-}
-.gf-caption__side {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-1);
-  max-width: 260px;
-}
-.gf-caption__step {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.gf-caption__part {
-  text-transform: none;
-  letter-spacing: 0;
-}
-.gf-caption__text {
-  margin: var(--space-1) 0 0;
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--text);
-}
-.gf-caption__text--idle {
-  font-weight: 400;
-  color: var(--muted);
-}
-.gf-caption__note {
-  margin: var(--space-2) 0 0;
-  padding-left: var(--space-3);
-  border-left: 3px solid var(--accent);
-  color: var(--text);
-  white-space: pre-wrap;
-}
-.gf-caption__reason {
-  margin: 0;
-  font-size: 12px;
-  text-align: right;
-  color: var(--muted);
-}
-.gf-caption__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: var(--space-2) 0 0;
-  padding: 0;
-  list-style: none;
-}
-.gf-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 2px var(--space-2);
-  font-size: 13px;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: var(--rule-width) solid var(--accent);
-  border-radius: var(--radius);
-}
-.gf-tag__key {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.gf-tag--warn {
-  color: var(--warn);
-  background: var(--warn-bg);
-  border-color: var(--warn);
-}
-.gf-shortcuts {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-.gf-kbd {
-  padding: 0 var(--space-1);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text);
-  background: var(--canvas);
-  border: var(--rule-width) solid var(--rule-strong);
-  border-radius: var(--radius);
-}
-.gf-btn[aria-pressed="true"]:not(:disabled) {
-  color: var(--on-accent);
-  background: var(--accent);
-}
-.gf-author .gf-field {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-1);
-}
-.gf-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-.gf-chip {
-  padding: 2px var(--space-2);
-  font: inherit;
-  font-size: 12px;
-  color: var(--accent);
-  background: var(--panel);
-  border: var(--rule-width) solid var(--accent);
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-.gf-chip[aria-pressed="true"] {
-  color: var(--on-accent);
-  background: var(--accent);
-}
-.gf-input {
-  min-height: 30px;
-  padding: var(--space-1) var(--space-2);
-  font: inherit;
-  color: var(--text);
-  background: var(--panel);
-  border: var(--rule-width) solid var(--accent);
-  border-radius: var(--radius);
-}
-.gf-input--area {
-  resize: vertical;
-}
-.gf-check {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  cursor: pointer;
-}
-.gf-export {
-  position: relative;
-  gap: var(--space-2);
-}
-/* Floats under the button so the confirmation never widens the header row. */
-.gf-export__message {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 20;
-  padding: 2px var(--space-2);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  white-space: nowrap;
-  color: var(--muted);
-  background: var(--panel);
-  border: var(--rule-width) solid var(--rule);
-  border-radius: var(--radius);
 }

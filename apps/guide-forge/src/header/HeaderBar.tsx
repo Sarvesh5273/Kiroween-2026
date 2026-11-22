@@ -1,7 +1,11 @@
 /**
  * Header_Bar (Requirements 2.2, 2.4, 6.1, 7.1, 10.1): the brand mark and title, the Kit_Selector,
- * the upload control, the Hero_Toggle, the Clash_Badge and the offline manual export button. It reads App_State through the context
- * hooks of its children and changes it only by dispatching App_Actions.
+ * the upload control, the Hero_Toggle, the Clash_Badge and the offline manual export button. It
+ * reads App_State through the context hooks of its children and changes it only by dispatching
+ * App_Actions.
+ *
+ * Layout: one row from 1200px up. Only the Kit_Selector and the Clash_Badge can shrink, so even
+ * the longest badge text (`X Clashes • Y Obstructed Parts`) ends before the right edge.
  */
 import type { ReactElement } from "react";
 import { ClashBadge } from "./ClashBadge";
@@ -19,12 +23,12 @@ function BrandMark(): ReactElement {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width={32}
-      height={32}
+      width={28}
+      height={28}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.125}
+      strokeWidth={1.25}
       strokeLinecap="square"
       strokeLinejoin="miter"
       focusable="false"

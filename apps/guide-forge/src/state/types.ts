@@ -83,10 +83,25 @@ export interface ViewSlice {
   cameraCommand: CameraCommand | null;
 }
 
+/** Visual weight of a transient toast. The text carries the meaning, the tone only styles it. */
+export type ToastTone = "ok" | "info" | "warn";
+
+/**
+ * Latest transient message for the floating toast in the viewport corner. `seq` increases with
+ * every post, so the view can restart its timer for a repeated message. The slice keeps the last
+ * toast; the toast host decides how long it stays visible.
+ */
+export interface Toast {
+  seq: number;
+  tone: ToastTone;
+  text: string;
+}
+
 export interface FeedbackSlice {
   recovery: RecoveryCard | null;
   notice: Notice | null;
   announcement: { seq: number; text: string };
+  toast: Toast | null;
 }
 
 /** Which parts the viewport draws. `hide-removed` and `ghost-context` apply in DBG mode. */
@@ -124,6 +139,7 @@ export type AppAction =
   | { type: "solve/failed"; requestId: number; failure: SolveFailure }
   | { type: "recovery/raised"; card: RecoveryCard }
   | { type: "recovery/dismissed" }
+  | { type: "feedback/toastPosted"; tone: ToastTone; text: string }
   | { type: "view/modeSet"; mode: Mode }
   | { type: "view/timelineSet"; p: number }
   | { type: "view/explodeSet"; s: number }

@@ -2,12 +2,14 @@
  * One Step row (Requirements 2.2, 13.4, 14.7, 15.2, 15.5, 15.6, 15.8).
  *
  * A native `<button type="button">`, so Enter and Space work and the row is focusable. The selected
- * row carries `aria-current="step"`. Every status (Not compiled, Obstructed, Interlocked) appears as
- * text with an icon, not as colour alone.
+ * row carries `aria-current="step"` and scrolls into view when the selection changes through the
+ * keyboard, the timeline or playback. Every status (Not compiled, Obstructed, Interlocked) appears
+ * as text with an icon, not as colour alone. The primitive badge is colour-coded by motion kind.
  */
-import type { ReactElement } from "react";
+import { useEffect, useRef, type ReactElement } from "react";
 import type { ManifestRow } from "../state/selectors";
 import { InterlockIcon, WarnIcon } from "../ui/icons";
+import { primitiveClass } from "../ui/primitives";
 
 export interface StepRowProps {
   row: ManifestRow;
@@ -15,13 +17,14 @@ export interface StepRowProps {
   onSelect: (index: number) => void;
 }
 
-function primitiveClass(primitive: string): string {
-  if (primitive === "helical_unscrew") return "gf-prim--helical";
-  if (primitive === "linear_slide") return "gf-prim--slide";
-  return "gf-prim--other";
-}
-
 export function StepRow({ row, onSelect }: StepRowProps): ReactElement {
+  const ref = useRef<HTMLButtonElement | null>(null);
+
+  // `nearest` leaves the list alone when the row is already visible, so a click never jumps it.
+  useEffect(() => {
+    if (row.selected) ref.current?.scrollIntoView({ block: "nearest" });
+  }, [row.selected]);
+
   const classes = ["gf-step"];
   if (row.primitive === null) classes.push("gf-step--uncompiled");
   if (row.obstructed) classes.push("gf-step--obstructed");
@@ -31,6 +34,7 @@ export function StepRow({ row, onSelect }: StepRowProps): ReactElement {
 
   return (
     <button
+      ref={ref}
       type="button"
       className={classes.join(" ")}
       aria-current={row.selected ? "step" : undefined}

@@ -1,35 +1,40 @@
 /**
- * Viewport toolbar: camera views, view modes (All, Hide removed, Ghost context), Explode_Slider, play and pause, and the Step_Timeline
- * (Requirements 3.6, 11.1, 11.8, 11.9, 11.10, 11.11, 14.9).
+ * Viewport controls (Requirements 3.6, 11.1, 11.8, 11.9, 11.10, 11.11, 14.9).
  *
- * The component reads App_State through the context and changes it only by dispatching actions.
- * Enablement comes from `selectControlEnablement`. Every disabled control has a visible text
- * reason next to it, so the state does not depend on colour alone (Requirement 16).
+ * Two components, both reading App_State through the context and changing it only by dispatching
+ * actions. Enablement comes from `selectControlEnablement`. Every disabled control has a visible
+ * text reason, so the state does not depend on colour alone (Requirement 16).
  *
- * `ViewportToolbar` renders the control row and, unless `showTimeline` is false, the Step_Timeline
- * below it. A layout that wants the timeline under the canvas passes `showTimeline={false}` and
- * renders `StepTimeline` there.
+ * - `ViewportToolbar` is a pair of frosted-glass pills tucked into the top-left corner of the 3D
+ *   view: camera views (Iso, Front, Top, Fit) and view modes (All, Hide Removed, Ghost). It floats
+ *   over the canvas, so the canvas keeps the full column height.
+ * - `StepTimeline` is the slim bar under the canvas: Prev (K), Play (Space) and Next (J) transport
+ *   buttons next to one custom blueprint track. In DBG mode the track is the Step_Timeline with
+ *   thinned step numbers. In Naive mode the same track is the Explode_Slider, because the timeline
+ *   does not apply there and the two never need to be on screen together.
  */
-import { useId, type ChangeEvent, type ReactElement } from "react";
-import { timelineToSlider } from "../motion/timeline";
+import { useId, type ChangeEvent, type CSSProperties, type ReactElement } from "react";
+import { nextStepIndex } from "../authoring/useKeyboardShortcuts";
 import type { SolveResult } from "../protocol";
 import { useAppDispatch, useAppState } from "../state/AppStateProvider";
 import { selectControlEnablement } from "../state/selectors";
 import type { AppState, CameraKind, VisibilityMode } from "../state/types";
-import { PauseIcon, PlayIcon } from "../ui/icons";
+import { PauseIcon, PlayIcon, StepBackIcon, StepForwardIcon } from "../ui/icons";
 
 const VIEW_BUTTONS: readonly { kind: Extract<CameraKind, "iso" | "front" | "top" | "fit">; label: string; hint: string }[] = [
-  { kind: "iso", label: "Iso", hint: "Isometric view of the assembly" },
-  { kind: "front", label: "Front", hint: "Front view of the assembly" },
-  { kind: "top", label: "Top", hint: "Top view of the assembly" },
-  { kind: "fit", label: "Fit", hint: "Frame the whole assembly at its current pose" },
+  { kind: "iso", label: "Iso", hint: "Isometric view of the assembly (1)" },
+  { kind: "front", label: "Front", hint: "Front view of the assembly (2)" },
+  { kind: "top", label: "Top", hint: "Top view of the assembly (3)" },
+  { kind: "fit", label: "Fit", hint: "Frame the whole assembly at its current pose (F)" },
 ];
 
 const VISIBILITY_BUTTONS: readonly { mode: VisibilityMode; label: string; hint: string }[] = [
   { mode: "all", label: "All", hint: "Show every part" },
-  { mode: "hide-removed", label: "Hide removed", hint: "Hide parts that are already removed, to see the exposed interior" },
-  { mode: "ghost-context", label: "Ghost context", hint: "Fade every part except the current step's part" },
+  { mode: "hide-removed", label: "Hide Removed", hint: "Hide parts that are already removed, to see the exposed interior" },
+  { mode: "ghost-context", label: "Ghost", hint: "Ghost context: fade every part except the current step's part" },
 ];
+
+const VIEW_MODE_NEEDS_DBG = " (needs UnboltKit DBG mode with a solved plan)";
 
 export const REASON_REDUCED_MOTION = "Autoplay is off (reduced motion)";
 export const REASON_INTERLOCKED = "Interlocked assembly: no valid sequence";
@@ -68,12 +73,6 @@ export function explodeDisabledReason(state: AppState): string | null {
   return "No naive explode report for this file";
 }
 
-/** Current Explode_Slider value `s` in [0, 1]. In DBG mode it is `p / N`, the same position as the timeline. */
-function sliderValue(state: AppState): number {
-  if (state.view.mode === "naive") return state.view.naiveExplode;
-  return timelineToSlider(state.view.timelineP, stepCount(state.solve.result));
-}
-
 /** Largest assembly whose timeline labels every step. */
 export const TIMELINE_FULL_LABEL_LIMIT = 20;
 
@@ -100,177 +99,188 @@ export function visibleTickNumbers(n: number): number[] {
   return numbers;
 }
 
+/** Why Play is unavailable, or `null` when it works or the plan is already playing. */
+function playDisabledReason(state: AppState): string | null {
+  const enablement = selectControlEnablement(state);
+  if (enablement.play || state.view.playing) return null;
+  if (state.view.reducedMotion && enablement.timeline) return REASON_REDUCED_MOTION;
+  return state.view.mode === "dbg"
+    ? timelineDisabledReason(state)
+    : "Play is available in UnboltKit DBG mode";
+}
+
 export function StepTimeline(): ReactElement {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const sliderId = useId();
+  const enablement = selectControlEnablement(state);
+  const { mode, playing, timelineP, naiveExplode, selectedStepIndex } = state.view;
   const n = stepCount(state.solve.result);
-  const enabled = selectControlEnablement(state).timeline;
-  const reason = timelineDisabledReason(state);
-  const p = state.view.timelineP;
-  const labelled = new Set(visibleTickNumbers(n));
+  const naive = mode === "naive";
+
+  // One track, two meanings: the timeline position in DBG mode, the explode amount in Naive mode.
+  const enabled = enablement.explodeSlider;
+  const value = naive ? naiveExplode : timelineP;
+  const max = naive ? 1 : Math.max(1, n);
+  const shown = enabled ? value : 0;
+  // `--fill` is the position as a number from 0 to 1. The stylesheet turns it into the fill stop.
+  const trackStyle = { "--fill": String(shown / max) } as CSSProperties;
+  const labelled = new Set(naive ? [] : visibleTickNumbers(n));
+
+  const prevIndex = nextStepIndex(selectedStepIndex, n, -1);
+  const nextIndex = nextStepIndex(selectedStepIndex, n, 1);
+  const explodeReason = explodeDisabledReason(state);
+  const playReason = playDisabledReason(state);
 
   const onChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    dispatch({ type: "view/timelineSet", p: Number(event.currentTarget.value) });
+    const next = Number(event.currentTarget.value);
+    dispatch(naive ? { type: "view/explodeSet", s: next } : { type: "view/timelineSet", p: next });
+  };
+  const onStep = (index: number | null): void => {
+    if (index !== null) dispatch({ type: "view/stepSelected", index });
+  };
+  const onPlayPause = (): void => {
+    dispatch({ type: playing ? "view/pauseRequested" : "view/playRequested" });
   };
 
+  const readout = naive ? shown.toFixed(2) : n === 0 ? "0 / 0" : `${timelineP.toFixed(2)} / ${n}`;
+  const valueText = naive
+    ? `${Math.round(shown * 100)} percent exploded`
+    : n === 0
+      ? "No steps"
+      : `Position ${timelineP.toFixed(2)} of ${n} steps`;
+
   return (
-    <section className="gf-timeline" aria-label="Step timeline">
-      <div className="gf-toolbar__group">
-        <label className="gf-toolbar__label" htmlFor={sliderId}>
-          Step timeline
-        </label>
-        <span className="gf-toolbar__value">
-          {n === 0 ? "0 / 0" : `${p.toFixed(2)} / ${n}`}
-        </span>
+    <section className="gf-timeline" aria-label="Step timeline" data-mode={mode}>
+      <div className="gf-transport" role="group" aria-label="Playback">
+        <button
+          type="button"
+          className="gf-transport__btn"
+          title="Previous step (K)"
+          aria-keyshortcuts="K"
+          disabled={prevIndex === null}
+          onClick={() => onStep(prevIndex)}
+        >
+          <StepBackIcon size={14} />
+          <span>Prev</span>
+          <kbd className="gf-kbd">K</kbd>
+        </button>
+        <button
+          type="button"
+          className="gf-transport__btn gf-transport__btn--play"
+          title={playing ? "Pause playback (Space)" : "Play the removal sequence (Space)"}
+          aria-keyshortcuts="Space"
+          disabled={!enablement.play && !playing}
+          onClick={onPlayPause}
+        >
+          {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
+          <span>{playing ? "Pause" : "Play"}</span>
+          <kbd className="gf-kbd">Space</kbd>
+        </button>
+        <button
+          type="button"
+          className="gf-transport__btn"
+          title="Next step (J)"
+          aria-keyshortcuts="J"
+          disabled={nextIndex === null}
+          onClick={() => onStep(nextIndex)}
+        >
+          <span>Next</span>
+          <kbd className="gf-kbd">J</kbd>
+          <StepForwardIcon size={14} />
+        </button>
       </div>
-      <div className="gf-timeline__track">
-        <input
-          id={sliderId}
-          className="gf-slider"
-          type="range"
-          min={0}
-          max={Math.max(1, n)}
-          step={0.01}
-          value={enabled ? p : 0}
-          disabled={!enabled}
-          aria-valuetext={n === 0 ? "No steps" : `Position ${p.toFixed(2)} of ${n} steps`}
-          onChange={onChange}
-        />
-        <ol className="gf-timeline__ticks" aria-label="Steps">
-          {Array.from({ length: n }, (_, index) => (
-            <li key={index} className="gf-timeline__tick">
-              {labelled.has(index + 1) ? (
-                <span className="gf-timeline__tick-label">{index + 1}</span>
-              ) : null}
-            </li>
-          ))}
-        </ol>
-      </div>
-      <div className="gf-timeline__reason-slot">
-        {reason !== null ? (
-          <p className="gf-timeline__reason" data-testid="timeline-reason">
-            {reason}
-          </p>
-        ) : null}
+
+      <div className="gf-timeline__main">
+        <div className="gf-timeline__head">
+          <label className="gf-timeline__label" htmlFor={sliderId}>
+            {naive ? "Explode" : "Step timeline"}
+          </label>
+          <span className="gf-timeline__value">{readout}</span>
+          <span className="gf-timeline__reasons">
+            {explodeReason !== null ? (
+              <span className="gf-timeline__reason" data-testid="explode-reason" title={explodeReason}>
+                {explodeReason}
+              </span>
+            ) : null}
+            {playReason !== null && playReason !== explodeReason ? (
+              <span className="gf-timeline__reason" data-testid="play-reason" title={playReason}>
+                {playReason}
+              </span>
+            ) : null}
+          </span>
+        </div>
+        <div className="gf-timeline__track" style={trackStyle}>
+          <input
+            id={sliderId}
+            className="gf-slider gf-slider--blueprint"
+            type="range"
+            min={0}
+            max={max}
+            step={naive ? 0.001 : 0.01}
+            value={shown}
+            disabled={!enabled}
+            aria-valuetext={valueText}
+            onChange={onChange}
+          />
+          <ol className="gf-timeline__ticks" aria-label="Steps">
+            {naive
+              ? null
+              : Array.from({ length: n }, (_, index) => (
+                  <li key={index} className="gf-timeline__tick">
+                    {labelled.has(index + 1) ? (
+                      <span className="gf-timeline__tick-label">{index + 1}</span>
+                    ) : null}
+                  </li>
+                ))}
+          </ol>
+        </div>
       </div>
     </section>
   );
 }
 
-export interface ViewportToolbarProps {
-  /** Render the Step_Timeline below the control row. Default `true`. */
-  showTimeline?: boolean;
-}
-
-export function ViewportToolbar({ showTimeline = true }: ViewportToolbarProps): ReactElement {
+export function ViewportToolbar(): ReactElement {
   const state = useAppState();
   const dispatch = useAppDispatch();
-  const explodeId = useId();
-  const enablement = selectControlEnablement(state);
-  const { mode, playing, reducedMotion } = state.view;
   const { visibilityMode } = state.authoring;
-  // Hide removed and Ghost context read the removal parameter and the active step, so they need DBG mode.
-  const viewModesEnabled = enablement.timeline;
-  const s = sliderValue(state);
-  const explodeReason = explodeDisabledReason(state);
-
-  const onExplode = (event: ChangeEvent<HTMLInputElement>): void => {
-    dispatch({ type: "view/explodeSet", s: Number(event.currentTarget.value) });
-  };
-
-  const onPlayPause = (): void => {
-    dispatch({ type: playing ? "view/pauseRequested" : "view/playRequested" });
-  };
-
-  const playReason =
-    enablement.play || playing
-      ? null
-      : reducedMotion && enablement.timeline
-        ? REASON_REDUCED_MOTION
-        : mode === "dbg"
-          ? timelineDisabledReason(state)
-          : "Play is available in UnboltKit DBG mode";
+  // Hide Removed and Ghost read the removal parameter and the active step, so they need DBG mode.
+  const viewModesEnabled = selectControlEnablement(state).timeline;
 
   return (
-    <>
-      <div className="gf-toolbar" role="toolbar" aria-label="Viewport controls">
-        <div className="gf-toolbar__group" role="group" aria-label="Camera views">
-          {VIEW_BUTTONS.map(({ kind, label, hint }) => (
-            <button
-              key={kind}
-              type="button"
-              className="gf-btn gf-btn--compact"
-              title={hint}
-              onClick={() => dispatch({ type: "view/cameraRequested", kind })}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+    <div className="gf-hud gf-hud--top-left" role="toolbar" aria-label="Viewport controls">
+      <div className="gf-glass" role="group" aria-label="Camera views">
+        {VIEW_BUTTONS.map(({ kind, label, hint }) => (
+          <button
+            key={kind}
+            type="button"
+            className="gf-glass__btn"
+            title={hint}
+            onClick={() => dispatch({ type: "view/cameraRequested", kind })}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
-        <div className="gf-toolbar__group" role="group" aria-label="View mode">
-          {VISIBILITY_BUTTONS.map(({ mode: viewMode, label, hint }) => (
+      <div className="gf-glass" role="group" aria-label="View mode">
+        {VISIBILITY_BUTTONS.map(({ mode: viewMode, label, hint }) => {
+          const disabled = viewMode !== "all" && !viewModesEnabled;
+          return (
             <button
               key={viewMode}
               type="button"
-              className="gf-btn gf-btn--compact"
-              title={hint}
+              className="gf-glass__btn"
+              title={disabled ? `${hint}${VIEW_MODE_NEEDS_DBG}` : hint}
               aria-pressed={visibilityMode === viewMode}
-              disabled={viewMode !== "all" && !viewModesEnabled}
+              disabled={disabled}
               onClick={() => dispatch({ type: "authoring/visibilitySet", mode: viewMode })}
             >
               {label}
             </button>
-          ))}
-        </div>
-        <div className="gf-toolbar__group gf-toolbar__group--grow">
-          <label className="gf-toolbar__label" htmlFor={explodeId}>
-            Explode
-          </label>
-          <input
-            id={explodeId}
-            className="gf-slider"
-            type="range"
-            min={0}
-            max={1}
-            step={0.001}
-            value={enablement.explodeSlider ? s : 0}
-            disabled={!enablement.explodeSlider}
-            aria-valuetext={`${Math.round(s * 100)} percent`}
-            onChange={onExplode}
-          />
-          <span className="gf-toolbar__value">{s.toFixed(2)}</span>
-        </div>
-
-        <div className="gf-toolbar__group">
-          <button
-            type="button"
-            className="gf-btn gf-btn--compact"
-            title={playing ? "Pause playback" : "Play the removal sequence"}
-            disabled={!enablement.play && !playing}
-            onClick={onPlayPause}
-          >
-            {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
-            {playing ? "Pause" : "Play"}
-          </button>
-        </div>
-
-        {/* Fixed one-line slot: toggling DBG and Naive never changes the toolbar height. */}
-        <div className="gf-toolbar__reasons">
-          {explodeReason !== null ? (
-            <p className="gf-timeline__reason" data-testid="explode-reason" title={explodeReason}>
-              {explodeReason}
-            </p>
-          ) : null}
-          {playReason !== null && playReason !== explodeReason ? (
-            <p className="gf-timeline__reason" data-testid="play-reason" title={playReason}>
-              {playReason}
-            </p>
-          ) : null}
-        </div>
+          );
+        })}
       </div>
-      {showTimeline ? <StepTimeline /> : null}
-    </>
+    </div>
   );
 }

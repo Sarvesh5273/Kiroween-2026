@@ -9,11 +9,14 @@
  *   lost), the canvas host is replaced by `WebglUnavailable`.
  * - The snapshot capture of the controller is registered in `snapshotRegistry` for the manual
  *   exporter. It renders a fresh frame on demand, so the renderer keeps its default drawing buffer.
+ * - The floating `ComparisonCard` (DBG against Naive clash counts for a solved plan) sits over the
+ *   stage's bottom-left corner. It is plain DOM above the canvas and never touches the controller.
  * - Anything the controller throws, for example a primitive `pose` failure, propagates out of the
  *   effect to the `ViewportErrorBoundary` instead of being hidden.
  */
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useAppState } from "../state/AppStateProvider";
+import { ComparisonCard } from "./ComparisonCard";
 import { SceneController, type SceneViewModel } from "./sceneController";
 import { registerSnapshotCapture } from "./snapshotRegistry";
 import { WebglUnavailable } from "./WebglUnavailable";
@@ -77,6 +80,7 @@ export function ViewportCanvas(): ReactElement {
       {/* The controller appends its canvas here. React renders no children into this node. */}
       <div ref={hostRef} className="gf-viewport__canvas" />
       {unavailable ? <WebglUnavailable reason={unavailableReason} /> : null}
+      {!unavailable ? <ComparisonCard /> : null}
       {loading && !unavailable ? (
         <p className="gf-viewport__loading" role="status">
           Loading assembly… the solver is running in the background.

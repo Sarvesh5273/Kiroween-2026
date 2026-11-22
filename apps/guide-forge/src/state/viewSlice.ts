@@ -3,7 +3,8 @@
  * reduced-motion flag and camera commands.
  *
  * Rules (Requirements 4.5, 10.2, 10.8, 11.1, 11.8, 11.9, 11.10, 13.7, 14.9, 15.4):
- * - `view/modeSet` is gated by `selectModeToggleEnabled` and never touches the solve slice.
+ * - `view/modeSet` is gated by `selectModeToggleEnabled` and never touches the solve slice. Switching
+ *   into Naive with `naiveExplode === 0` sets it to `NAIVE_ENTRY_EXPLODE`.
  * - The timeline and the Explode_Slider share one position `p`, so `selectedStepIndex` always equals
  *   `activeStepIndex(p, N)` after a timeline or slider change, and `stepSelected(i)` sets `p = i + 1`.
  * - `playing` implies `p < N`, DBG mode, an enabled timeline and no reduced-motion request.
@@ -24,6 +25,13 @@ export const initialViewSlice: ViewSlice = {
   reducedMotion: false,
   cameraCommand: null,
 };
+
+/**
+ * Explode_Slider value that a switch into Naive mode starts from when the slider is still at 0.
+ * At 0.65 of the full travel the blocked parts already drive into their neighbours, so the
+ * crimson clash highlights show without a drag.
+ */
+export const NAIVE_ENTRY_EXPLODE = 0.65;
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
@@ -71,7 +79,19 @@ export const viewReducer: SliceReducer<ViewSlice> = (slice, action, previous) =>
     case "view/modeSet": {
       if (!selectModeToggleEnabled(previous)) return slice;
       if (action.mode === slice.mode) return slice;
-      return { ...slice, mode: action.mode, playing: false };
+      // One click on Naive must already show the clashes. Entering it with the slider closed opens
+      // it to NAIVE_ENTRY_EXPLODE. A value the user chose earlier is kept, and so is a result
+      // without a naive report, because the slider is disabled there.
+      const opensExplode =
+        action.mode === "naive" &&
+        slice.naiveExplode === 0 &&
+        (previous.solve.result?.naive ?? null) !== null;
+      return {
+        ...slice,
+        mode: action.mode,
+        naiveExplode: opensExplode ? NAIVE_ENTRY_EXPLODE : slice.naiveExplode,
+        playing: false,
+      };
     }
 
     case "view/timelineSet": {

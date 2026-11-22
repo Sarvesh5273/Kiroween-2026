@@ -8,6 +8,9 @@
  * - `solve/failed` raises a card from the worker failure (Requirement 5.12).
  * - Messages with a stale request id change nothing, like in the solve slice.
  *
+ * - `feedback/toastPosted` and an accepted `view/modeSet` also set the short `toast` that floats in
+ *   the viewport corner. The toast is visual only; its text goes to the live region as well.
+ *
  * Every accepted state change also bumps `announcement.seq` with visible text (Requirement 16.2).
  * Pure. No React, no DOM and no three import.
  */
@@ -17,16 +20,22 @@ import {
   announceModeChange,
   announceRecovery,
   announceSolveFinished,
+  toastModeChange,
 } from "./announce";
 import { buildFailureCard, buildPolyBudgetNotice, buildRecoveryCard } from "./recovery";
 import { selectDeadlockModel, selectModeToggleEnabled } from "./selectors";
-import type { FeedbackSlice, Notice, RecoveryCard, SliceReducer } from "./types";
+import type { FeedbackSlice, Notice, RecoveryCard, SliceReducer, Toast, ToastTone } from "./types";
 
 export const initialFeedbackSlice: FeedbackSlice = {
   recovery: null,
   notice: null,
   announcement: { seq: 0, text: "" },
+  toast: null,
 };
+
+function nextToast(slice: FeedbackSlice, tone: ToastTone, text: string): Toast {
+  return { seq: (slice.toast?.seq ?? 0) + 1, tone, text };
+}
 
 function announce(slice: FeedbackSlice, text: string): FeedbackSlice["announcement"] {
   return { seq: slice.announcement.seq + 1, text };
@@ -35,7 +44,12 @@ function announce(slice: FeedbackSlice, text: string): FeedbackSlice["announceme
 export const feedbackReducer: SliceReducer<FeedbackSlice> = (slice, action, previous) => {
   switch (action.type) {
     case "solve/started":
-      return { recovery: null, notice: null, announcement: announce(slice, announceLoadStarted(action.label)) };
+      return {
+        ...slice,
+        recovery: null,
+        notice: null,
+        announcement: announce(slice, announceLoadStarted(action.label)),
+      };
 
     case "solve/succeeded": {
       const solve = previous.solve;
@@ -58,14 +72,19 @@ export const feedbackReducer: SliceReducer<FeedbackSlice> = (slice, action, prev
         const deadlock = selectDeadlockModel(result);
         if (deadlock !== null) parts.push(announceDeadlock(deadlock));
       }
-      return { recovery, notice, announcement: announce(slice, parts.join(" ")) };
+      return { ...slice, recovery, notice, announcement: announce(slice, parts.join(" ")) };
     }
 
     case "solve/failed": {
       const solve = previous.solve;
       if (solve.status !== "loading" || solve.activeRequestId !== action.requestId) return slice;
       const card = buildFailureCard(action.failure);
-      return { recovery: card, notice: null, announcement: announce(slice, announceRecovery(card)) };
+      return {
+        ...slice,
+        recovery: card,
+        notice: null,
+        announcement: announce(slice, announceRecovery(card)),
+      };
     }
 
     case "recovery/raised":
@@ -74,10 +93,29 @@ export const feedbackReducer: SliceReducer<FeedbackSlice> = (slice, action, prev
     case "recovery/dismissed":
       return slice.recovery === null ? slice : { ...slice, recovery: null };
 
+    case "feedback/toastPosted": {
+      // A toast is visual only. The same text goes to the live region, so it also reads aloud.
+      const text = action.text.trim();
+      if (text === "") return slice;
+      return {
+        ...slice,
+        announcement: announce(slice, text),
+        toast: nextToast(slice, action.tone, text),
+      };
+    }
+
     case "view/modeSet":
       // Announce only a mode change that the view slice accepts.
       if (!selectModeToggleEnabled(previous) || action.mode === previous.view.mode) return slice;
-      return { ...slice, announcement: announce(slice, announceModeChange(action.mode)) };
+      return {
+        ...slice,
+        announcement: announce(slice, announceModeChange(action.mode)),
+        toast: nextToast(
+          slice,
+          action.mode === "naive" ? "warn" : "ok",
+          toastModeChange(action.mode, previous.solve.result),
+        ),
+      };
 
     default:
       return slice;

@@ -23,12 +23,12 @@ import {
   ACESFilmicToneMapping,
   BufferAttribute,
   BufferGeometry,
+  CanvasTexture,
   Color,
   ConeGeometry,
   DirectionalLight,
   DoubleSide,
   EdgesGeometry,
-  GridHelper,
   Group,
   LineBasicMaterial,
   LineSegments,
@@ -36,10 +36,14 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
+  PCFSoftShadowMap,
   PerspectiveCamera,
+  PlaneGeometry,
   PMREMGenerator,
   Quaternion,
   Scene,
+  ShaderMaterial,
+  ShadowMaterial,
   SRGBColorSpace,
   Texture,
   Vector2,
@@ -71,17 +75,52 @@ import type { Bounds, CameraFrame } from "./cameraViews";
 // Constants
 // ---------------------------------------------------------------------------
 
+/** Flat clear colour. Only visible if the studio backdrop texture cannot be built. */
 const CANVAS_COLOR = 0xf6f8fb;
 const ACCENT_COLOR = 0x1e3a5f;
 const CRIMSON_COLOR = 0xdc143c;
 const AMBER_COLOR = 0xf59e0b;
 
+// Studio set (keep in step with `--studio-center` and `--studio-edge` in tokens.css).
+/** Backdrop centre and edge, as `[r, g, b]` in sRGB 0..255. */
+const STUDIO_CENTER_RGB: readonly [number, number, number] = [0xfa, 0xfb, 0xfd];
+const STUDIO_EDGE_RGB: readonly [number, number, number] = [0xee, 0xf3, 0xf8];
+const BACKDROP_SIZE = 512;
+
+const KEY_LIGHT_COLOR = 0xfff8f0;
+const KEY_LIGHT_INTENSITY = 1.15;
+const FILL_LIGHT_COLOR = 0xcfe0ff;
+const FILL_LIGHT_INTENSITY = 0.35;
+const RIM_LIGHT_COLOR = 0xe6f0ff;
+const RIM_LIGHT_INTENSITY = 0.55;
+
+/**
+ * Soft contact shadows. Assemblies are normalized to maxExtent 1.0 and centred on the origin, so a
+ * fixed orthographic frustum of this half extent covers the assembled pose and the naive explode
+ * travel (0.65) with margin.
+ */
+const SHADOW_MAP_SIZE = 2048;
+const SHADOW_HALF_EXTENT = 1.4;
+const SHADOW_BIAS = -0.0002;
+const SHADOW_NORMAL_BIAS = 0.004;
+const SHADOW_CATCHER_OPACITY = 0.16;
+const SHADOW_CATCHER_COLOR = 0x0f172a;
+/** Parts with less opacity than this (glass, films) cast no shadow, so glass does not read as solid. */
+const SHADOW_MIN_OPACITY = 0.5;
+
+// Architectural drafting grid: a fine 0.05 grid under a heavier 0.25 grid, fading out with distance.
 const GRID_SIZE = 6;
-const GRID_DIVISIONS = 24;
-const GRID_OPACITY = 0.25;
-/** Gap between the assembly bottom and the ground grid, in normalized units. */
-const GRID_GAP = 0.02;
-/** Grid height when no assembly is loaded. Normalized assemblies are centred on the origin. */
+const GRID_MINOR_STEP = 0.05;
+const GRID_MAJOR_STEP = 0.25;
+const GRID_MINOR_OPACITY = 0.07;
+const GRID_MAJOR_OPACITY = 0.2;
+const GRID_FADE_INNER = 0.9;
+const GRID_FADE_OUTER = 2.7;
+/** Gap between the assembly bottom and the ground, in normalized units. Small, so parts read as resting on it. */
+const GRID_GAP = 0.004;
+/** The shadow catcher floats this far above the grid so the two never fight for depth. */
+const SHADOW_CATCHER_LIFT = 0.0005;
+/** Ground height when no assembly is loaded. Normalized assemblies are centred on the origin. */
 const GRID_DEFAULT_Y = -0.5;
 
 const CAMERA_FOV_DEG = 35;
@@ -281,7 +320,14 @@ interface GlResources {
   camera: PerspectiveCamera;
   controls: OrbitControls;
   envTarget: WebGLRenderTarget;
-  grid: GridHelper;
+  /** The only light that casts shadows. Disposed with the controller to free its shadow map. */
+  keyLight: DirectionalLight;
+  /** Drafting grid plane. Lives at the assembly bottom. */
+  grid: Mesh<PlaneGeometry, ShaderMaterial>;
+  /** Transparent ground that shows only the shadows cast by the parts. */
+  shadowCatcher: Mesh<PlaneGeometry, ShadowMaterial>;
+  /** Radial studio gradient used as `scene.background`. `null` when no 2D canvas is available. */
+  backdrop: CanvasTexture | null;
   partsGroup: Group;
   leaderGroup: Group;
   leaderFullMaterial: LineMaterial;
@@ -509,8 +555,13 @@ export class SceneController {
     gl.arrowMaterial.dispose();
 
     gl.grid.geometry.dispose();
-    disposeMaterial(gl.grid.material as Material);
+    gl.grid.material.dispose();
+    gl.shadowCatcher.geometry.dispose();
+    gl.shadowCatcher.material.dispose();
 
+    gl.keyLight.dispose();
+    gl.scene.background = null;
+    gl.backdrop?.dispose();
     gl.scene.environment = null;
     gl.envTarget.dispose();
 
@@ -536,8 +587,15 @@ export class SceneController {
     renderer.outputColorSpace = SRGBColorSpace;
     renderer.setClearColor(CANVAS_COLOR, 1);
     renderer.setPixelRatio(currentPixelRatio());
+    // Soft penumbra shadows from the key light onto the shadow-catcher ground.
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = PCFSoftShadowMap;
 
     const scene = new Scene();
+
+    // Studio backdrop: a soft radial gradient, light in the middle and cooler at the edges.
+    const backdrop = createStudioBackdrop();
+    if (backdrop !== null) scene.background = backdrop;
 
     // Environment: RoomEnvironment through PMREM, assigned as the scene environment (Requirement 3.2).
     const pmrem = new PMREMGenerator(renderer);
@@ -547,18 +605,42 @@ export class SceneController {
     room.dispose();
     pmrem.dispose();
 
-    const keyLight = new DirectionalLight(0xffffff, 1);
-    keyLight.position.set(2, 3, 2);
+    // Three-point studio rig: a warm key light that casts the shadows, a cool fill from the opposite
+    // side and a cool rim from behind that separates the edges from the backdrop.
+    const keyLight = new DirectionalLight(KEY_LIGHT_COLOR, KEY_LIGHT_INTENSITY);
+    keyLight.position.set(2.2, 3.4, 1.6);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+    keyLight.shadow.bias = SHADOW_BIAS;
+    keyLight.shadow.normalBias = SHADOW_NORMAL_BIAS;
+    const shadowCamera = keyLight.shadow.camera;
+    shadowCamera.left = -SHADOW_HALF_EXTENT;
+    shadowCamera.right = SHADOW_HALF_EXTENT;
+    shadowCamera.top = SHADOW_HALF_EXTENT;
+    shadowCamera.bottom = -SHADOW_HALF_EXTENT;
+    shadowCamera.near = 0.5;
+    shadowCamera.far = 10;
+    shadowCamera.updateProjectionMatrix();
     scene.add(keyLight);
 
-    // Ground grid in the accent colour at reduced opacity (Requirement 3.3).
-    const grid = new GridHelper(GRID_SIZE, GRID_DIVISIONS, ACCENT_COLOR, ACCENT_COLOR);
-    const gridMaterial = grid.material as LineBasicMaterial;
-    gridMaterial.transparent = true;
-    gridMaterial.opacity = GRID_OPACITY;
-    gridMaterial.depthWrite = false;
+    const fillLight = new DirectionalLight(FILL_LIGHT_COLOR, FILL_LIGHT_INTENSITY);
+    fillLight.position.set(-2.4, 1.6, 1.2);
+    scene.add(fillLight);
+
+    const rimLight = new DirectionalLight(RIM_LIGHT_COLOR, RIM_LIGHT_INTENSITY);
+    rimLight.position.set(-1.2, 2.2, -3);
+    scene.add(rimLight);
+
+    // Drafting grid and the shadow-catcher ground sit at the assembly bottom (Requirement 3.3).
+    const grid = createDraftingGrid();
     grid.position.y = GRID_DEFAULT_Y;
+    grid.renderOrder = 0;
     scene.add(grid);
+
+    const shadowCatcher = createShadowCatcher();
+    shadowCatcher.position.y = GRID_DEFAULT_Y + SHADOW_CATCHER_LIFT;
+    shadowCatcher.renderOrder = 1;
+    scene.add(shadowCatcher);
 
     const partsGroup = new Group();
     const leaderGroup = new Group();
@@ -625,7 +707,10 @@ export class SceneController {
       camera,
       controls,
       envTarget,
+      keyLight,
       grid,
+      shadowCatcher,
+      backdrop,
       partsGroup,
       leaderGroup,
       leaderFullMaterial,
@@ -696,7 +781,7 @@ export class SceneController {
     this.derived = null;
     this.transforms = new Map();
     if (result === null) {
-      gl.grid.position.y = GRID_DEFAULT_Y;
+      this.placeGround(gl, GRID_DEFAULT_Y);
       return;
     }
 
@@ -715,6 +800,10 @@ export class SceneController {
       const mesh = new Mesh(geometry, material);
       mesh.name = data.partId;
       mesh.matrixAutoUpdate = false;
+      // Every solid part casts a soft shadow onto the ground and receives the others' shadows, so
+      // hardware reads as physically grounded. Glass and films cast none (see `castsShadow`).
+      mesh.castShadow = castsShadow(material);
+      mesh.receiveShadow = true;
       gl.partsGroup.add(mesh);
 
       const record: PartRecord = {
@@ -735,8 +824,13 @@ export class SceneController {
       this.partById.set(data.partId, record);
     }
 
-    gl.grid.position.y =
-      result.parts.length > 0 ? this.allBounds().min[1] - GRID_GAP : GRID_DEFAULT_Y;
+    this.placeGround(gl, result.parts.length > 0 ? this.allBounds().min[1] - GRID_GAP : GRID_DEFAULT_Y);
+  }
+
+  /** Puts the drafting grid and the shadow catcher on the same ground height, right under the assembly. */
+  private placeGround(gl: GlResources, y: number): void {
+    gl.grid.position.y = y;
+    gl.shadowCatcher.position.y = y + SHADOW_CATCHER_LIFT;
   }
 
   private clearPartsIn(gl: GlResources): void {
@@ -863,11 +957,16 @@ export class SceneController {
       material.opacity = GHOST_OPACITY;
       material.depthWrite = false;
       material.transmission = 0;
+      // A ghost is context only: it leaves no shadow and takes none.
+      record.mesh.castShadow = false;
+      record.mesh.receiveShadow = false;
     } else {
       material.transparent = record.baseTransparent;
       material.opacity = record.baseOpacity;
       material.depthWrite = record.baseDepthWrite;
       material.transmission = record.baseTransmission;
+      record.mesh.castShadow = castsShadow(material);
+      record.mesh.receiveShadow = true;
     }
     // Transparency and transmission change the shader program.
     material.needsUpdate = true;
@@ -1228,6 +1327,135 @@ function snapshotViewModel(
 
 function defaultCreateRenderer(): WebGLRenderer {
   return new WebGLRenderer({ antialias: true });
+}
+
+/** Whether a part with this material casts a shadow: solid parts do, glass and films do not. */
+function castsShadow(material: MeshPhysicalMaterial): boolean {
+  return material.transmission === 0 && material.opacity >= SHADOW_MIN_OPACITY;
+}
+
+/** 4 x 4 Bayer matrix. Ordered dithering hides the banding of a gradient this gentle in 8 bits. */
+const BAYER_4X4: readonly number[] = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+
+/**
+ * Radial studio gradient for `scene.background`: `STUDIO_CENTER_RGB` in the middle, easing to
+ * `STUDIO_EDGE_RGB` in the corners. The texture is stretched over the viewport, so the vignette
+ * follows its aspect ratio. Returns `null` when the browser gives no 2D canvas context. The caller
+ * then keeps the flat clear colour, which is the documented fallback and not a hidden failure.
+ */
+function createStudioBackdrop(): CanvasTexture | null {
+  const size = BACKDROP_SIZE;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (context === null) return null;
+
+  const image = context.createImageData(size, size);
+  const [centerR, centerG, centerB] = STUDIO_CENTER_RGB;
+  const [edgeR, edgeG, edgeB] = STUDIO_EDGE_RGB;
+  const half = size / 2;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      // 0 at the centre, 1 in the corners, eased so the middle stays calm.
+      const r = Math.min(1, Math.hypot(x + 0.5 - half, y + 0.5 - half) / (half * Math.SQRT2));
+      const t = r * r * (3 - 2 * r);
+      const threshold = ((BAYER_4X4[(y & 3) * 4 + (x & 3)] as number) + 0.5) / 16;
+      const offset = (y * size + x) * 4;
+      image.data[offset] = Math.min(255, Math.floor(centerR + (edgeR - centerR) * t + threshold));
+      image.data[offset + 1] = Math.min(255, Math.floor(centerG + (edgeG - centerG) * t + threshold));
+      image.data[offset + 2] = Math.min(255, Math.floor(centerB + (edgeB - centerB) * t + threshold));
+      image.data[offset + 3] = 255;
+    }
+  }
+  context.putImageData(image, 0, 0);
+
+  const texture = new CanvasTexture(canvas);
+  // Authored in sRGB. Three skips tone mapping for an sRGB background, so the colours stay exact.
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+const GRID_VERTEX_SHADER = /* glsl */ `
+  varying vec2 vPlane;
+  void main() {
+    vPlane = position.xz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const GRID_FRAGMENT_SHADER = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uMinorStep;
+  uniform float uMajorStep;
+  uniform float uMinorOpacity;
+  uniform float uMajorOpacity;
+  uniform float uFadeInner;
+  uniform float uFadeOuter;
+  varying vec2 vPlane;
+
+  // 1 on a grid line, 0 between lines, about one pixel wide at any distance.
+  float gridLine(vec2 plane, float cellSize) {
+    vec2 cell = plane / cellSize;
+    vec2 width = max(fwidth(cell), vec2(1e-5));
+    vec2 toLine = abs(fract(cell - 0.5) - 0.5);
+    vec2 line = 1.0 - smoothstep(vec2(0.0), width * 1.25, toLine);
+    // Once a cell is thinner than about half a pixel the lines would merge into a solid sheet.
+    float detail = 1.0 - smoothstep(0.3, 0.6, max(width.x, width.y));
+    return max(line.x, line.y) * detail;
+  }
+
+  void main() {
+    float minor = gridLine(vPlane, uMinorStep) * uMinorOpacity;
+    float major = gridLine(vPlane, uMajorStep) * uMajorOpacity;
+    float fade = 1.0 - smoothstep(uFadeInner, uFadeOuter, length(vPlane));
+    float alpha = max(minor, major) * fade;
+    if (alpha < 0.003) discard;
+    gl_FragColor = vec4(uColor, alpha);
+    #include <colorspace_fragment>
+  }
+`;
+
+/**
+ * Architectural drafting grid on the ground: a fine minor grid under a heavier major grid, in the
+ * blueprint accent colour, fading out with distance from the origin. Drawn with one anti-aliased
+ * shader plane, so the lines stay crisp at every zoom.
+ */
+function createDraftingGrid(): Mesh<PlaneGeometry, ShaderMaterial> {
+  const geometry = new PlaneGeometry(GRID_SIZE, GRID_SIZE);
+  geometry.rotateX(-Math.PI / 2);
+  const material = new ShaderMaterial({
+    vertexShader: GRID_VERTEX_SHADER,
+    fragmentShader: GRID_FRAGMENT_SHADER,
+    uniforms: {
+      uColor: { value: new Color(ACCENT_COLOR) },
+      uMinorStep: { value: GRID_MINOR_STEP },
+      uMajorStep: { value: GRID_MAJOR_STEP },
+      uMinorOpacity: { value: GRID_MINOR_OPACITY },
+      uMajorOpacity: { value: GRID_MAJOR_OPACITY },
+      uFadeInner: { value: GRID_FADE_INNER },
+      uFadeOuter: { value: GRID_FADE_OUTER },
+    },
+    transparent: true,
+    depthWrite: false,
+    side: DoubleSide,
+  });
+  return new Mesh(geometry, material);
+}
+
+/** Invisible ground that draws only the shadows cast onto it, at the configured opacity. */
+function createShadowCatcher(): Mesh<PlaneGeometry, ShadowMaterial> {
+  const geometry = new PlaneGeometry(GRID_SIZE, GRID_SIZE);
+  geometry.rotateX(-Math.PI / 2);
+  const material = new ShadowMaterial({
+    color: SHADOW_CATCHER_COLOR,
+    opacity: SHADOW_CATCHER_OPACITY,
+    transparent: true,
+    depthWrite: false,
+  });
+  const mesh = new Mesh(geometry, material);
+  mesh.receiveShadow = true;
+  return mesh;
 }
 
 function currentPixelRatio(): number {

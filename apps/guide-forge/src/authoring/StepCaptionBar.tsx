@@ -9,6 +9,7 @@
 import { useEffect, type ReactElement } from "react";
 import { useAppDispatch, useAppState } from "../state/AppStateProvider";
 import { WarnIcon } from "../ui/icons";
+import { primitiveClass } from "../ui/primitives";
 import { buildNarration, selectCurrentStepModel, type StepCaptionModel } from "./stepText";
 import { SHORTCUT_LEGEND } from "./useKeyboardShortcuts";
 
@@ -91,8 +92,13 @@ export function StepCaptionBar(): ReactElement {
         {model !== null ? (
           <>
             <p className="gf-caption__step">
-              Step {model.number} of {model.total}
-              <span className="gf-caption__part"> · {model.name}</span>
+              <span className="gf-caption__badge">
+                Step {model.number} of {model.total}
+              </span>
+              <span className="gf-caption__part">{model.name}</span>
+              {model.primitive !== null ? (
+                <span className={`gf-prim ${primitiveClass(model.primitive)}`}>{model.primitive}</span>
+              ) : null}
             </p>
             <p className="gf-caption__text" data-testid="caption-text">
               {model.instruction}
