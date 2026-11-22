@@ -1,0 +1,1472 @@
+/*
+ * Guide Forge app styles: Light Blueprint technical CAD studio.
+ *
+ * Rules for this file
+ *  - No colour literals. Every colour comes from tokens.css through var(...).
+ *  - No import from apps/unbolt-blitz. Nothing here is shared with that app.
+ *  - Monospace (var(--font-mono)) for telemetry numbers, badges and the clash badge.
+ *
+ * CLASS NAME REFERENCE (BEM-ish, prefix gf-)
+ * ------------------------------------------
+ * Modifiers use double dash (gf-btn--primary). State classes use is- (is-selected).
+ * Where a native attribute carries the state it is styled directly:
+ * aria-pressed="true", aria-current="step", [disabled], [aria-disabled="true"].
+ *
+ * Shell
+ *   gf-app                       root column: header, strips, main
+ *   gf-main                      row under the header: viewport (centre) + manifest (right)
+ *   gf-sr-only                   visually hidden text (aria-live region)
+ *   gf-icon                      inline SVG icon, sized 1em, stroke follows currentColor
+ *   gf-btn                       base button
+ *     gf-btn--primary            filled accent button
+ *     gf-btn--ghost              borderless button
+ *     gf-btn--icon               square icon-only button (needs aria-label and title)
+ *     gf-btn--compact            small toolbar button
+ *   gf-link-btn                  text-style button (Part name inside the interlock banner)
+ *
+ * Header bar
+ *   gf-header                    top bar
+ *   gf-header__brand             title block
+ *   gf-header__title             application name
+ *   gf-header__subtitle          small monospace caption
+ *   gf-header__group             one control cluster (label + control)
+ *   gf-header__spacer            flexible gap
+ *   gf-field                     label + control pair
+ *   gf-field__label              small caption above or beside a control
+ *   gf-select                    native select (kit selector)
+ *   gf-file-input                visually hidden file input; the label uses gf-btn
+ *   gf-hero                      hero toggle group (role group)
+ *     gf-hero__option            toggle button; aria-pressed="true" marks the active one
+ *   gf-clash                     clash badge (monospace)
+ *     gf-clash--ok | --bad | --warn | --idle
+ *     gf-clash__icon             leading status icon
+ *     gf-clash__text             badge text
+ *
+ * Strips under the header
+ *   gf-progress                  progress strip (list of chips)
+ *     gf-progress__chip          one stage chip
+ *       gf-progress__chip--pending | --started | --completed
+ *     gf-progress__name          stage name
+ *     gf-progress__state         started or completed text
+ *     gf-progress__ms            elapsed milliseconds
+ *   gf-status-line               visible status text (same message as the live region)
+ *   gf-notice                    notice bar
+ *     gf-notice--warn | --info
+ *     gf-notice__icon, gf-notice__text, gf-notice__actions
+ *   gf-recovery                  recovery card (tabindex -1, receives focus)
+ *     gf-recovery__icon, gf-recovery__heading, gf-recovery__body,
+ *     gf-recovery__details (list), gf-recovery__actions
+ *
+ * Viewport column
+ *   gf-viewport                  column: toolbar, stage, timeline
+ *   gf-toolbar                   view buttons and playback row
+ *     gf-toolbar__group          cluster of buttons
+ *     gf-toolbar__label          caption for a slider
+ *     gf-toolbar__value          monospace readout
+ *   gf-slider                    range input (explode slider, timeline slider)
+ *   gf-dropzone                  wrapper around the stage that accepts file drops
+ *     gf-dropzone--active        file dragged over: dashed outline and label
+ *     gf-dropzone__label         the visible drop text
+ *   gf-viewport__stage           canvas host with the drafting grid
+ *   gf-viewport__canvas          the WebGL canvas
+ *   gf-viewport__loading         loading text over the stage
+ *   gf-leader-label              CSS2D label for the leader spline step number
+ *   gf-webgl-unavailable         text panel shown when WebGL cannot start
+ *     gf-webgl-unavailable__heading, gf-webgl-unavailable__body
+ *   gf-timeline                  step timeline
+ *     gf-timeline__track         relative box holding slider and ticks
+ *     gf-timeline__ticks         tick row (one tick per Step)
+ *     gf-timeline__tick          one tick; gf-timeline__tick-label holds its number
+ *     gf-timeline__reason        visible reason text when the timeline is disabled
+ *
+ * Manifest panel
+ *   gf-manifest                  right-hand aside
+ *     gf-manifest__header, gf-manifest__title, gf-manifest__body
+ *     gf-manifest__empty         empty state text
+ *     gf-manifest__section       titled block; gf-manifest__heading is its heading
+ *   gf-bom                       bill of materials summary
+ *     gf-bom__item, gf-bom__value (monospace), gf-bom__label
+ *   gf-callout                   status callout with icon and text
+ *     gf-callout--ok | --bad | --warn | --muted
+ *     gf-callout__icon, gf-callout__text
+ *   gf-steps                     ordered list of step rows
+ *   gf-step                      step row button; aria-current="step" marks the selection
+ *     gf-step--uncompiled        peeled step without a primitive (deadlocked plan)
+ *     gf-step--obstructed        naive mode, clashCount above 0
+ *     gf-step--interlocked       deadlocked part row
+ *     gf-step__num               step number (monospace)
+ *     gf-step__name              part name
+ *     gf-step__dist              escape distance (monospace)
+ *     gf-step__flag              text label with icon: Obstructed or Interlocked
+ *     gf-step__clashes           per-part clash count (monospace)
+ *   gf-prim                      primitive badge (monospace)
+ *     gf-prim--helical | --slide | --other | --uncompiled
+ *   gf-locked                    Locked Parts list; gf-locked__item is one row
+ *
+ * Interlock banner
+ *   gf-interlock                 banner; gf-interlock__heading, gf-interlock__summary,
+ *                                gf-interlock__cycles (ol), gf-interlock__cycle (li),
+ *                                gf-interlock__parts, gf-interlock__edges, gf-interlock__edge,
+ *                                gf-interlock__close
+ *
+ * Reduced motion: the media query at the end removes all transitions and animations.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+  background-color: var(--canvas);
+  /* Faint 8px drafting grid with a heavier line every 64px. */
+  background-image:
+    linear-gradient(var(--grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size:
+    calc(var(--grid-unit) * 8) calc(var(--grid-unit) * 8),
+    calc(var(--grid-unit) * 8) calc(var(--grid-unit) * 8),
+    var(--grid-unit) var(--grid-unit),
+    var(--grid-unit) var(--grid-unit);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+ol,
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Focus, utilities, icons                                             */
+/* ------------------------------------------------------------------ */
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gf-recovery:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gf-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.gf-icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+/* ------------------------------------------------------------------ */
+/* Buttons and form controls                                           */
+/* ------------------------------------------------------------------ */
+
+.gf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--accent);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.gf-btn:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--accent-soft);
+}
+
+.gf-btn--primary {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.gf-btn--primary:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--accent-hover);
+}
+
+.gf-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.gf-btn--icon {
+  width: 32px;
+  padding: 0;
+}
+
+.gf-btn--compact {
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  font-size: 13px;
+}
+
+.gf-btn:disabled,
+.gf-btn[aria-disabled="true"],
+.gf-hero__option:disabled {
+  color: var(--muted);
+  background: var(--canvas);
+  border-style: dashed;
+  border-color: var(--rule);
+  cursor: not-allowed;
+}
+
+.gf-link-btn {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  border-bottom: var(--rule-width) dashed var(--accent);
+  cursor: pointer;
+}
+
+.gf-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gf-field__label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.gf-select {
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.gf-select:disabled {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+.gf-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  opacity: 0;
+}
+
+/* Keep the focus ring on the label when the hidden input has focus. */
+.gf-file-input:focus-visible + .gf-btn {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gf-slider {
+  flex: 1 1 120px;
+  min-width: 96px;
+  accent-color: var(--accent);
+}
+
+.gf-slider:disabled {
+  accent-color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ */
+/* App shell                                                           */
+/* ------------------------------------------------------------------ */
+
+.gf-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.gf-main {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--manifest-width);
+  min-height: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Header bar                                                          */
+/* ------------------------------------------------------------------ */
+
+.gf-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--panel);
+  border-bottom: 2px solid var(--accent);
+}
+
+.gf-header__brand {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gf-header__title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+
+.gf-header__subtitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.gf-header__group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* Desktop: keep the header on one row. Below 1200px it wraps as before. */
+@media (min-width: 1200px) {
+  .gf-header {
+    flex-wrap: nowrap;
+  }
+  .gf-header > *,
+  .gf-header__group {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .gf-header__spacer {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .gf-header .gf-select {
+    max-width: 200px;
+  }
+  .gf-header .gf-hero__option {
+    padding: 0 var(--space-3);
+  }
+}
+
+.gf-header__spacer {
+  flex: 1 1 0;
+}
+
+/* Hero toggle: a segmented control between the two modes. */
+.gf-hero {
+  display: inline-flex;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.gf-hero__option {
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  font: inherit;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--panel);
+  border: 0;
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.gf-hero__option + .gf-hero__option {
+  border-left: 2px solid var(--accent);
+}
+
+.gf-hero__option:hover:not(:disabled):not([aria-pressed="true"]) {
+  background: var(--accent-soft);
+}
+
+.gf-hero__option[aria-pressed="true"] {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.gf-hero__option:disabled {
+  border-width: 0;
+}
+
+.gf-hero__option:disabled + .gf-hero__option {
+  border-left: 2px dashed var(--rule);
+}
+
+/* Clash badge: monospace telemetry with a leading icon, so status is not colour only. */
+.gf-clash {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--muted);
+  background: var(--panel);
+  border: var(--rule-width) solid currentColor;
+  border-radius: var(--radius);
+}
+
+.gf-clash--ok {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+
+.gf-clash--bad {
+  color: var(--bad);
+  background: var(--bad-bg);
+}
+
+.gf-clash--warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.gf-clash--idle {
+  color: var(--muted);
+  background: var(--panel);
+  border-style: dashed;
+}
+
+.gf-clash__icon {
+  font-size: 16px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Strips under the header                                             */
+/* ------------------------------------------------------------------ */
+
+.gf-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--panel);
+  border-bottom: var(--rule-width) solid var(--rule);
+}
+
+.gf-progress__chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 2px var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--canvas);
+  border: var(--rule-width) dashed var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.gf-progress__chip--started {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-style: solid;
+  border-color: var(--accent);
+  animation: gf-chip-pulse 1.2s var(--ease) infinite alternate;
+}
+
+.gf-progress__chip--completed {
+  color: var(--ok);
+  background: var(--ok-bg);
+  border-style: solid;
+  border-color: var(--ok);
+}
+
+.gf-progress__name {
+  font-weight: 700;
+}
+
+.gf-progress__ms {
+  font-variant-numeric: tabular-nums;
+}
+
+.gf-status-line {
+  padding: var(--space-1) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--canvas);
+  border-bottom: var(--rule-width) solid var(--rule);
+}
+
+.gf-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-bottom: var(--rule-width) solid var(--accent);
+}
+
+.gf-notice--warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-bottom-color: var(--warn);
+}
+
+.gf-notice--info {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.gf-notice__icon {
+  margin-top: 2px;
+  font-size: 18px;
+}
+
+.gf-notice__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+}
+
+.gf-notice__actions,
+.gf-recovery__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.gf-recovery {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-3) var(--space-4);
+  padding: var(--space-4);
+  color: var(--text);
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+
+.gf-recovery__icon {
+  grid-row: 1 / span 4;
+  font-size: 32px;
+  color: var(--accent);
+}
+
+.gf-recovery__heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.gf-recovery__body {
+  color: var(--text);
+}
+
+.gf-recovery__details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ */
+/* Viewport column                                                     */
+/* ------------------------------------------------------------------ */
+
+.gf-viewport {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.gf-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  background: var(--panel);
+  border-bottom: var(--rule-width) solid var(--rule);
+}
+
+.gf-toolbar__group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gf-toolbar__group--grow {
+  flex: 1 1 200px;
+}
+
+.gf-toolbar__label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.gf-toolbar__value {
+  min-width: 4ch;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.gf-dropzone {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 240px;
+}
+
+.gf-dropzone__label {
+  display: none;
+  position: absolute;
+  inset: var(--space-3);
+  z-index: 3;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--accent);
+  background: var(--scrim);
+  border: 3px dashed var(--accent);
+  border-radius: var(--radius);
+  pointer-events: none;
+}
+
+.gf-dropzone--active .gf-dropzone__label {
+  display: flex;
+}
+
+.gf-viewport__stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--canvas);
+  background-image:
+    linear-gradient(var(--grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size:
+    calc(var(--grid-unit) * 8) calc(var(--grid-unit) * 8),
+    calc(var(--grid-unit) * 8) calc(var(--grid-unit) * 8),
+    var(--grid-unit) var(--grid-unit),
+    var(--grid-unit) var(--grid-unit);
+}
+
+.gf-viewport__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.gf-viewport__loading {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: 2;
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.gf-leader-label {
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: var(--radius);
+  pointer-events: none;
+  user-select: none;
+}
+
+.gf-webgl-unavailable {
+  position: absolute;
+  inset: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--text);
+  background: var(--panel);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+}
+
+.gf-webgl-unavailable__heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.gf-webgl-unavailable__body {
+  max-width: 52ch;
+  color: var(--muted);
+}
+
+/* Step timeline */
+.gf-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  background: var(--panel);
+  border-top: var(--rule-width) solid var(--rule);
+}
+
+.gf-timeline__track {
+  position: relative;
+}
+
+.gf-timeline__track .gf-slider {
+  display: block;
+  width: 100%;
+  margin: 0;
+}
+
+.gf-timeline__ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+}
+
+.gf-timeline__tick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  border-left: var(--rule-width) solid var(--rule-strong);
+  padding-top: 2px;
+}
+
+.gf-timeline__tick-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.gf-timeline__reason {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+/* One reserved line, so a reason appearing or vanishing never moves the canvas. */
+.gf-toolbar__reasons,
+.gf-timeline__reason-slot {
+  display: flex;
+  gap: var(--space-4);
+  min-height: 18px;
+  overflow: hidden;
+}
+.gf-toolbar__reasons {
+  flex: 1 1 100%;
+}
+
+/* ------------------------------------------------------------------ */
+/* Manifest panel                                                      */
+/* ------------------------------------------------------------------ */
+
+.gf-manifest {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--panel);
+  border-left: 2px solid var(--accent);
+}
+
+.gf-manifest__header {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--rule-width) solid var(--rule);
+}
+
+.gf-manifest__title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.gf-manifest__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.gf-steps-scroll {
+  max-height: min(34vh, 320px);
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+  border: var(--rule-width) solid var(--rule);
+  border-radius: var(--radius);
+}
+.gf-manifest__pinned {
+  flex: 0 0 auto;
+  max-height: 46%;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+  background: var(--panel);
+  border-top: 2px solid var(--accent);
+}
+.gf-manifest__empty {
+  padding: var(--space-4);
+  color: var(--muted);
+  border: var(--rule-width) dashed var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.gf-manifest__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.gf-manifest__heading {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Bill of materials */
+.gf-bom {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: var(--rule-width) solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.gf-bom__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-2) var(--space-1);
+  text-align: center;
+}
+
+.gf-bom__item + .gf-bom__item {
+  border-left: var(--rule-width) solid var(--rule);
+}
+
+.gf-bom__value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.gf-bom__label {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--muted);
+}
+
+/* Status callouts */
+.gf-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  color: var(--muted);
+  background: var(--panel);
+  border: var(--rule-width) solid currentColor;
+  border-left-width: 4px;
+  border-radius: var(--radius);
+}
+
+.gf-callout--ok {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+
+.gf-callout--bad {
+  color: var(--bad);
+  background: var(--bad-bg);
+}
+
+.gf-callout--warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.gf-callout--muted {
+  color: var(--muted);
+  background: var(--panel);
+  border-style: dashed;
+}
+
+.gf-callout__icon {
+  margin-top: 2px;
+  font-size: 16px;
+}
+
+.gf-callout__text {
+  font-weight: 600;
+}
+
+/* Step rows */
+.gf-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.gf-step {
+  display: grid;
+  grid-template-columns: 3ch minmax(0, 1fr) auto;
+  grid-template-areas:
+    "num name badge"
+    "num dist flag";
+  align-items: center;
+  gap: 2px var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--rule);
+  border-left: 4px solid var(--rule-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease), border-color var(--duration) var(--ease);
+}
+
+.gf-step:hover {
+  background: var(--accent-soft);
+}
+
+.gf-step[aria-current="step"],
+.gf-step.is-selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  border-left-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.gf-step__num {
+  grid-area: num;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.gf-step__name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gf-step > .gf-prim {
+  grid-area: badge;
+  justify-self: end;
+}
+
+.gf-step__dist {
+  grid-area: dist;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.gf-step__flag {
+  grid-area: flag;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gf-step__clashes {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gf-step--obstructed {
+  border-left-color: var(--bad);
+}
+
+.gf-step--obstructed .gf-step__flag,
+.gf-step--obstructed .gf-step__clashes {
+  color: var(--bad);
+}
+
+.gf-step--interlocked {
+  border-left-color: var(--warn);
+}
+
+.gf-step--interlocked .gf-step__flag {
+  color: var(--warn);
+}
+
+.gf-step--uncompiled .gf-step__dist {
+  color: var(--muted);
+}
+
+/* Primitive badges */
+.gf-prim {
+  display: inline-block;
+  padding: 1px var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: var(--rule-width) solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.gf-prim--helical {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.gf-prim--slide {
+  color: var(--accent);
+  background: var(--panel);
+}
+
+.gf-prim--other {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.gf-prim--uncompiled {
+  color: var(--muted);
+  background: var(--panel);
+  border-style: dashed;
+  border-color: var(--rule-strong);
+}
+
+/* Locked parts */
+.gf-locked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.gf-locked__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  color: var(--text);
+  border: var(--rule-width) solid var(--rule);
+  border-left: 4px solid var(--warn);
+  border-radius: var(--radius);
+}
+
+/* ------------------------------------------------------------------ */
+/* Interlock banner                                                    */
+/* ------------------------------------------------------------------ */
+
+.gf-interlock {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text);
+  background: var(--warn-bg);
+  border: 2px solid var(--warn);
+  border-radius: var(--radius);
+}
+
+.gf-interlock__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--warn);
+}
+
+.gf-interlock__summary {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gf-interlock__cycles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: decimal inside;
+}
+
+.gf-interlock__cycle {
+  padding: var(--space-2);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--warn);
+  border-radius: var(--radius);
+}
+
+.gf-interlock__parts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  vertical-align: middle;
+}
+
+.gf-interlock__edges {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-1);
+}
+
+.gf-interlock__edge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gf-interlock__close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+}
+
+/* ------------------------------------------------------------------ */
+/* Animations                                                          */
+/* ------------------------------------------------------------------ */
+
+@keyframes gf-chip-pulse {
+  from {
+    box-shadow: 0 0 0 0 var(--shadow);
+  }
+  to {
+    box-shadow: 0 0 0 3px var(--shadow);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Narrow screens                                                      */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+  .gf-app {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .gf-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gf-dropzone {
+    min-height: 60vh;
+  }
+
+  .gf-manifest {
+    border-left: 0;
+    border-top: 2px solid var(--accent);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reduced motion: steady highlights, no transitions or animations     */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Manifest panel additions: callout detail text and locked-part rows. */
+.gf-callout__text {
+  margin: 0;
+}
+
+.gf-callout__detail {
+  font-weight: 400;
+  color: var(--text);
+}
+
+.gf-locked__item .gf-step__flag {
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------------------ */
+/* Part 2: step caption bar, shortcuts, authoring editor, export        */
+/* ------------------------------------------------------------------ */
+.gf-caption {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--panel);
+  border-top: 2px solid var(--accent);
+}
+.gf-caption__main {
+  min-width: 0;
+}
+.gf-caption__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  max-width: 260px;
+}
+.gf-caption__step {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.gf-caption__part {
+  text-transform: none;
+  letter-spacing: 0;
+}
+.gf-caption__text {
+  margin: var(--space-1) 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+.gf-caption__text--idle {
+  font-weight: 400;
+  color: var(--muted);
+}
+.gf-caption__note {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  white-space: pre-wrap;
+}
+.gf-caption__reason {
+  margin: 0;
+  font-size: 12px;
+  text-align: right;
+  color: var(--muted);
+}
+.gf-caption__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.gf-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  font-size: 13px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: var(--rule-width) solid var(--accent);
+  border-radius: var(--radius);
+}
+.gf-tag__key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.gf-tag--warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-color: var(--warn);
+}
+.gf-shortcuts {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.gf-kbd {
+  padding: 0 var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
+  background: var(--canvas);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+.gf-btn[aria-pressed="true"]:not(:disabled) {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+.gf-author .gf-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+.gf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.gf-chip {
+  padding: 2px var(--space-2);
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--accent);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.gf-chip[aria-pressed="true"] {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+.gf-input {
+  min-height: 30px;
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--accent);
+  border-radius: var(--radius);
+}
+.gf-input--area {
+  resize: vertical;
+}
+.gf-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+.gf-export {
+  position: relative;
+  gap: var(--space-2);
+}
+/* Floats under the button so the confirmation never widens the header row. */
+.gf-export__message {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  padding: 2px var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--muted);
+  background: var(--panel);
+  border: var(--rule-width) solid var(--rule);
+  border-radius: var(--radius);
+}

@@ -1,0 +1,79 @@
+/*
+ * Guide Forge theme tokens: Light Blueprint.
+ *
+ * This is the ONLY file in the app that contains colour literals. app.css and
+ * every component style reference these custom properties through var(...).
+ *
+ * Contrast pairs
+ * --------------
+ * Every text/background pair that app.css uses is declared below in the form
+ *
+ *     pair: <foreground token> on <background token>
+ *
+ * and each pair has a WCAG contrast ratio of at least 4.5:1. The unit test in
+ * test/unit/theme.test.ts parses these lines and the hex values of the base
+ * tokens, then recomputes the ratios.
+ *
+ * pair: --text on --canvas
+ * pair: --text on --panel
+ * pair: --accent on --canvas
+ * pair: --accent on --panel
+ * pair: --on-accent on --accent
+ * pair: --muted on --canvas
+ * pair: --muted on --panel
+ * pair: --ok on --ok-bg
+ * pair: --ok on --panel
+ * pair: --warn on --warn-bg
+ * pair: --warn on --panel
+ * pair: --bad on --bad-bg
+ * pair: --bad on --panel
+ */
+
+:root {
+  /* Base palette (Blueprint_Palette) */
+  --canvas: #F6F8FB;
+  --accent: #1E3A5F;
+  --text: #0F172A;
+
+  /* Supporting palette */
+  --muted: #475569;
+  --panel: #FFFFFF;
+  --on-accent: #FFFFFF;
+
+  /* Status pairs: foreground / tinted background */
+  --ok: #14532D;
+  --ok-bg: #F0FDF4;
+  --warn: #92400E;
+  --warn-bg: #FFFBEB;
+  --bad: #9F1239;
+  --bad-bg: #FFF1F2;
+
+  /* Derived tints. They mix the tokens above, so no new literal appears. */
+  --rule: color-mix(in srgb, var(--accent) 28%, var(--canvas));
+  --rule-strong: color-mix(in srgb, var(--accent) 70%, var(--canvas));
+  --accent-soft: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  --accent-hover: color-mix(in srgb, var(--accent) 88%, var(--panel));
+  --grid-minor: color-mix(in srgb, var(--accent) 6%, transparent);
+  --grid-major: color-mix(in srgb, var(--accent) 11%, transparent);
+  --shadow: color-mix(in srgb, var(--accent) 14%, transparent);
+  --scrim: color-mix(in srgb, var(--accent) 6%, transparent);
+
+  /* Typography. No web font is fetched. */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Spacing and shape (drafting grid unit is 8px) */
+  --grid-unit: 8px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --radius: 2px;
+  --rule-width: 1px;
+  --manifest-width: clamp(300px, 28vw, 400px);
+
+  /* Motion. Reduced-motion media query in app.css zeroes every transition and animation. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --duration: 140ms;
+}
