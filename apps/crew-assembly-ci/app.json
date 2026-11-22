@@ -1,0 +1,29 @@
+{
+  "name": "crew-assembly-ci",
+  "version": "0.1.0",
+  "displayName": "UnboltKit Assembly CI",
+  "description": "Watches .glb CAD changes, audits them with the UnboltKit disassembly engine, flags Tarjan SCC deadlocks and repairability depth regressions, and writes disassembly-manifest.json.",
+  "iconPath": "assets/icon.png",
+  "agents": ["agents/assembly-auditor.json"],
+  "skills": ["skills/assembly-ci-audit"],
+  "ui": {
+    "entry": "ui/dist/index.mjs",
+    "pages": [
+      {
+        "route": "/apps/crew-assembly-ci",
+        "label": "Assembly CI",
+        "icon": "Wrench"
+      }
+    ]
+  },
+  "permissions": [
+    "fs:read:**/*.glb",
+    "fs:read:**/disassembly-manifest.json",
+    "fs:write:**/disassembly-manifest.json",
+    "shell:node apps/crew-assembly-ci/scripts/run-audit.mjs *",
+    "shell:git diff *",
+    "shell:git ls-files *",
+    "shell:git show *",
+    "mcp:cad-assembly-auditor"
+  ]
+}

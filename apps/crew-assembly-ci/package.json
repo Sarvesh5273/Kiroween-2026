@@ -1,0 +1,30 @@
+{
+  "name": "@unboltkit/crew-assembly-ci",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Kiro Crew app that audits .glb CAD assemblies for Tarjan SCC deadlocks and repairability depth regressions, and writes disassembly-manifest.json.",
+  "scripts": {
+    "build": "node scripts/build-engine.mjs && vite build --config ui/vite.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p ui/tsconfig.json",
+    "audit": "node scripts/run-audit.mjs",
+    "icon": "node scripts/generate-icon.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@unboltkit/cad-auditor-mcp": "*",
+    "@unboltkit/core": "*",
+    "@unboltkit/sample-kits": "*",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.1.0",
+    "@types/three": "^0.170.0",
+    "esbuild": "^0.25.12",
+    "typescript": "^5.9.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
+  }
+}

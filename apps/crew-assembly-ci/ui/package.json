@@ -1,0 +1,10 @@
+{
+  "name": "crew-assembly-ci-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Dashboard page of the UnboltKit Assembly CI Kiro Crew app. Built to dist/index.mjs. @kirocrew/app-sdk, react and react-dom are injected by the Kiro Crew host import map at runtime, so none of them is a dependency here.",
+  "main": "dist/index.mjs",
+  "module": "dist/index.mjs",
+  "files": ["dist"]
+}
