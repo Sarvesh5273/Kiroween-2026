@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Sync Extraction Primitive Across UnboltKit",
+  "description": "When a motion primitive in unbolt-core changes, keep the registry, shared types, Guide Forge wording and Unbolt Blitz audio cues in sync.",
+  "version": "1.0.0",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["packages/unbolt-core/src/primitives/*.ts"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A motion primitive file under `packages/unbolt-core/src/primitives/` was just edited. Keep every consumer of the primitive in sync, and change nothing else.\n\n0. Scope. Identify the primitive that changed: its `name`, its `PrimitiveParams` variant `kind`, and what its params mean. If the edited file is only `registry.ts`, `types.ts` or `se3.ts`, or if every target below already handles the primitive correctly, report that and stop. Do not re-trigger yourself in a loop.\n\n1. Core registration (`packages/unbolt-core`). Make sure the primitive is registered in `src/primitives/registry.ts` (`createDefaultPrimitiveRegistry`) with a unique snake_case name and a distinct priority. Make sure its params variant is part of the `PrimitiveParams` union in `src/types.ts`, and that its alias in `src/primitives/types.ts` exists. The primitive must stay pure CPU TypeScript with no DOM, WebGL or `window` access.\n\n2. Guide Forge (`apps/guide-forge`). Add default tool wording and badge support for the primitive in `src/state/authoringSlice.ts` and `src/authoring/stepText.ts`: a plain-language verb phrase (for example \"slide out\", \"unscrew\") and a badge label, plus a fallback for unknown primitives.\n\n3. Unbolt Blitz (`apps/unbolt-blitz`). Add audio and animation cue handling for the primitive in `src/modules/soundModule.ts`. Every audio cue must also have a visual or textual signal, because the game must be fully playable on mute.\n\n4. Separation. Strictly follow `.kiro/steering/ui-separation.md`. `guide-forge` stays a light-blueprint CAD manual studio and `unbolt-blitz` stays a dark clockwork puzzle game. Share no dashboard shell, CSS theme or app chrome between them. Shared logic belongs in `packages/`, never in either app.\n\n5. Verify, running shell commands one at a time and quoting the workspace path (it contains a space):\n   a. `npm --workspace=@unboltkit/core exec -- vitest run test/unit/stage4.test.ts test/unit/public-api.test.ts`\n   b. `npm --workspace=@unboltkit/core run typecheck`\n   c. `npm --workspace=@unboltkit/guide-forge run typecheck`\n   d. `npm --workspace=@unboltkit/unbolt-blitz run typecheck`\n   Read stdout and stderr for the real result, because the macOS PTY sometimes reports exit code -1 on success. If a check fails, fix the cause. Do not weaken or delete tests, and do not hardcode part IDs or fixture values to make anything pass.\n\nFinish with a short list of the files you changed and the result of the four checks."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Verify Core DBG Quick Suite",
+  "description": "Runs the quick unbolt-core test suite (no heavy invariant runs) whenever a core source file is saved. Uses no agent credits.",
+  "version": "1.0.0",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["packages/unbolt-core/src/**/*.ts"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm --workspace=@unboltkit/core run test:quick"
+  }
+}

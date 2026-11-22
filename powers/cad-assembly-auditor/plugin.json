@@ -1,0 +1,6 @@
+{
+  "name": "cad-assembly-auditor",
+  "version": "0.1.0",
+  "description": "Audit 3D CAD assemblies (.glb) with the UnboltKit disassembly engine: find Tarjan SCC deadlocks, read per-part repairability depth, and diff a candidate against a baseline in CI.",
+  "keywords": ["cad", "glb", "gltf", "disassembly", "deadlock", "repairability", "tarjan", "unboltkit"]
+}

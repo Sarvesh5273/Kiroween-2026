@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "cad-assembly-auditor": {
+      "command": "node",
+      "args": ["tools/cad-auditor-mcp/dist/server.js"],
+      "disabled": false
+    }
+  }
+}

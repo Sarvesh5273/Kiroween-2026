@@ -1,0 +1,28 @@
+{
+  "name": "@unboltkit/cad-auditor-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Local stdio MCP server that audits CAD assemblies with the UnboltKit disassembly engine.",
+  "bin": {
+    "cad-auditor-mcp": "dist/server.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/bundle.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@unboltkit/core": "*",
+    "@unboltkit/sample-kits": "*",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/three": "^0.170.0",
+    "esbuild": "^0.25.12",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
