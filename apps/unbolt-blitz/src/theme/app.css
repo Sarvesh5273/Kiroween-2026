@@ -1,0 +1,1271 @@
+/*
+ * Unbolt Blitz app styles ("Clockwork Arcade"). Dark, bevelled brass plates.
+ * Every class uses the `bz-` prefix and is BEM-style (block__element--modifier).
+ * Tokens come from ./tokens.css, which must be imported first.
+ *
+ * ---------------------------------------------------------------------------
+ * CLASS NAME REFERENCE (for the HUD, recovery and App components)
+ * ---------------------------------------------------------------------------
+ * Shell
+ *   .bz-app                    Root wrapper, fills the viewport.
+ *   .bz-arena                  Host element of the Three.js canvas (absolute, full size).
+ *   .bz-plate                  Generic bevelled plate. Combine with any block below.
+ *   .bz-plate--small           Smaller chamfer.
+ *   .bz-num                    Tabular numerals for any number.
+ *   .bz-live                   Visually hidden live region (LiveRegion, role="status").
+ *
+ * HUD layout (Hud.tsx)
+ *   .bz-hud                    Fixed overlay, pointer-events: none. Children opt in.
+ *   .bz-hud__top-left          LevelSelector.
+ *   .bz-hud__top-center        Stopwatch.
+ *   .bz-hud__top-right         Column: ScoreCombo, ProgressBar, Counters.
+ *   .bz-hud__bottom-left       OverBudgetNotice.
+ *   .bz-hud__notices           BlockerCallout and HintBanner, top-center under the TIME plate.
+ *   .bz-hud__bottom-center     Unused (kept for the narrow-screen rules).
+ *   .bz-hud__bottom-right      TrapLever.
+ *
+ * LevelSelector
+ *   .bz-levels                 Plate holding the list.
+ *   .bz-levels__title          Heading text.
+ *   .bz-levels__list           <ul>.
+ *   .bz-levels__item           <button> per level.
+ *   .bz-levels__item--active   Currently loaded level (also set aria-current="true").
+ *   .bz-levels__item--upload   The "Custom .glb drop/upload" entry.
+ *
+ * Stopwatch
+ *   .bz-stopwatch              Plate.
+ *   .bz-stopwatch__label       Small caption.
+ *   .bz-stopwatch__value       The m:ss.t digits.
+ *   .bz-stopwatch--stopped     Clock frozen (level complete).
+ *
+ * ScoreCombo
+ *   .bz-score                  Plate wrapping score and badge.
+ *   .bz-score__label           Small caption.
+ *   .bz-score__value           Score digits.
+ *   .bz-combo                  Combo badge (x1..x8).
+ *   .bz-combo--pulse           Add on a combo change. Change the React key to replay it.
+ *   .bz-combo--reset           Add on a reset to x1 (crimson flash).
+ *   .bz-combo--max             Add at x8.
+ *
+ * ProgressBar
+ *   .bz-progress               Plate.
+ *   .bz-progress__label        Caption.
+ *   .bz-progress__track        Bar track.
+ *   .bz-progress__fill         Bar fill. Set style="--progress: 0.4" (0 to 1).
+ *   .bz-progress__count        "removed / total" digits.
+ *
+ * Counters
+ *   .bz-counters               Plate holding both counters.
+ *   .bz-counter                One counter (mistakes or false alarms).
+ *   .bz-counter__label         Caption.
+ *   .bz-counter__value         Digits.
+ *   .bz-counter--bad           Add when the value is above 0 (crimson text).
+ *   .bz-counter--shake         Add on increment (reduced motion disables it).
+ *
+ * TrapLever
+ *   .bz-lever                  <button>, "Flag Interlock Trap".
+ *   .bz-lever__knob            Decorative knob span.
+ *   .bz-lever__label           Text span.
+ *   .bz-lever--shake           Add briefly after a false alarm.
+ *
+ * NamePill
+ *   .bz-name-pill              Fixed, pointer-events none. Set style left/top in px.
+ *
+ * Popups
+ *   .bz-popups                 Fixed overlay container, pointer-events none.
+ *   .bz-popup                  One floating text. Optional style --popup-x / --popup-y.
+ *   .bz-popup--gain            "+N" (teal).
+ *   .bz-popup--penalty         "+3s" (crimson text).
+ *   .bz-popup--alarm           "FALSE ALARM -250" (crimson text, larger).
+ *
+ * BlockerCallout
+ *   .bz-callout                Plate, "BLOCKED BY: A, B". Crimson border, shakes on entry.
+ *   .bz-callout__text          Text element.
+ *
+ * OverBudgetNotice (non-blocking)
+ *   .bz-budget                 Plate, pointer-events none, amber border, role="status".
+ *   .bz-budget__text           Notice text (--text on --plate).
+ *   .bz-budget__dismiss        Dismiss <button>, pointer-events auto.
+ *
+ * LoadingPlate
+ *   .bz-loading                Plate centered on screen.
+ *   .bz-loading__gear          Spinning gear.
+ *   .bz-loading__gear--small   Counter-rotating small gear.
+ *   .bz-loading__text          "Loading <Level label>".
+ *
+ * CompletionOverlay
+ *   .bz-overlay                Full-screen scrim, centers its plate.
+ *   .bz-overlay__plate         The dialog plate.
+ *   .bz-overlay__title         Title.
+ *   .bz-overlay__title--victory       "Victory" (teal).
+ *   .bz-overlay__title--interlock     "Interlock Exposed!" (amber).
+ *   .bz-stats                  <dl> grid of final stats.
+ *   .bz-stats__label           <dt>.
+ *   .bz-stats__value           <dd>.
+ *   .bz-overlay__actions       Row of buttons.
+ *
+ * Buttons (Replay, Choose level, Load Lockbox, Try another file, Dismiss)
+ *   .bz-button                 Brass lever-style button.
+ *   .bz-button--ghost          Outlined, low emphasis variant.
+ *
+ * Recovery screens (RecoveryScreen.tsx, WebglUnavailable.tsx)
+ *   .bz-recovery               Full-screen scrim, centers its plate.
+ *   .bz-recovery__plate        The plate.
+ *   .bz-recovery__title        Title.
+ *   .bz-recovery__body         Explanation paragraph.
+ *   .bz-recovery__detail       Optional monospace-free detail line.
+ *   .bz-recovery__actions      Row of buttons.
+ *   .bz-recovery--webgl        Modifier for the WebGL-unavailable screen.
+ * ---------------------------------------------------------------------------
+ */
+
+/* ---------- Base ---------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--obsidian);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.bz-num,
+.bz-stopwatch__value,
+.bz-score__value,
+.bz-combo,
+.bz-progress__count,
+.bz-counter__value,
+.bz-stats__value,
+.bz-popup {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.bz-app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--obsidian);
+  overflow: hidden;
+}
+
+.bz-arena {
+  position: absolute;
+  inset: 0;
+  background: var(--obsidian);
+}
+
+.bz-arena canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+
+.bz-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Bevelled plate ---------- */
+/* Chamfered top-left and bottom-right corners. The clip-path cuts off outer
+   shadows, so the bevel is built from inset shadows only. */
+
+.bz-plate,
+.bz-stopwatch,
+.bz-score,
+.bz-progress,
+.bz-counters,
+.bz-levels,
+.bz-callout,
+.bz-budget,
+.bz-loading,
+.bz-overlay__plate,
+.bz-recovery__plate {
+  --c: var(--chamfer);
+  background: var(--plate);
+  color: var(--text);
+  clip-path: polygon(
+    var(--c) 0,
+    100% 0,
+    100% calc(100% - var(--c)),
+    calc(100% - var(--c)) 100%,
+    0 100%,
+    0 var(--c)
+  );
+  box-shadow:
+    inset 1px 1px 0 var(--plate-hi),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.04),
+    inset -1px -1px 0 var(--plate-lo),
+    inset 0 0 0 1px var(--brass-dark),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.25);
+  padding: var(--plate-pad);
+}
+
+.bz-plate--small {
+  --c: var(--chamfer-small);
+}
+
+.bz-stopwatch__label,
+.bz-score__label,
+.bz-progress__label,
+.bz-counter__label,
+.bz-levels__title,
+.bz-stats__label {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ---------- HUD layout ---------- */
+
+.bz-hud {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-hud);
+  pointer-events: none;
+}
+
+.bz-hud__top-left,
+.bz-hud__top-center,
+.bz-hud__top-right,
+.bz-hud__bottom-left,
+.bz-hud__bottom-center,
+.bz-hud__bottom-right {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bz-hud__top-left { top: var(--hud-gap); left: var(--hud-gap); align-items: flex-start; }
+.bz-hud__top-center { top: var(--hud-gap); left: 50%; transform: translateX(-50%); align-items: center; }
+.bz-hud__top-right { top: var(--hud-gap); right: var(--hud-gap); align-items: flex-end; }
+.bz-hud__bottom-left {
+  bottom: var(--hud-gap);
+  left: var(--hud-gap);
+  align-items: flex-start;
+  /* Leaves room for the lever on the right and the callout in the middle. */
+  max-width: min(380px, calc(50vw - 140px));
+}
+.bz-hud__bottom-center {
+  bottom: var(--hud-gap);
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+  max-width: min(520px, calc(100vw - 2 * var(--hud-gap)));
+}
+.bz-hud__bottom-right { bottom: var(--hud-gap); right: var(--hud-gap); align-items: flex-end; }
+/* Blocker callout and hint banner: top-center directly below the TIME plate. Clear of the
+   top-left chips, the top-right score stack and the bottom-right Hint and trap lever. */
+.bz-hud__notices {
+  position: absolute;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: min(520px, calc(100vw - 440px));
+}
+.bz-hud__notices > * + * {
+  margin-top: 8px;
+}
+.bz-hud__notices .bz-callout,
+.bz-hud__notices .bz-hint-banner {
+  max-width: 100%;
+}
+
+/* Interactive HUD controls opt back in to pointer events. */
+.bz-levels,
+.bz-lever,
+.bz-budget__dismiss {
+  pointer-events: auto;
+}
+
+/* ---------- Level selector ---------- */
+
+.bz-levels {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+}
+
+.bz-levels__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bz-levels__item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-left: 3px solid var(--brass-dark);
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--dur-fast) linear, border-color var(--dur-fast) linear, color var(--dur-fast) linear;
+}
+
+.bz-levels__item:hover {
+  background: rgba(217, 155, 56, 0.12);
+  border-left-color: var(--brass);
+  color: var(--amber);
+}
+
+.bz-levels__item--active,
+.bz-levels__item[aria-current="true"] {
+  background: rgba(245, 185, 66, 0.14);
+  border-left-color: var(--amber);
+  color: var(--amber);
+}
+
+.bz-levels__item--upload {
+  margin-top: 4px;
+  border-top: 1px dashed var(--brass-dark);
+  color: var(--brass);
+}
+
+/* ---------- Stopwatch ---------- */
+
+.bz-stopwatch {
+  min-width: 150px;
+  text-align: center;
+}
+
+.bz-stopwatch__value {
+  display: block;
+  color: var(--amber);
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+}
+
+.bz-stopwatch--stopped .bz-stopwatch__value {
+  color: var(--text-muted);
+}
+
+/* ---------- Score and combo ---------- */
+
+.bz-score {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 220px;
+  justify-content: space-between;
+}
+
+.bz-score__value {
+  display: block;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1.15;
+}
+
+.bz-combo {
+  display: inline-block;
+  min-width: 52px;
+  padding: 4px 10px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--amber);
+  background: var(--obsidian);
+  border: 2px solid var(--brass);
+  border-radius: 999px;
+  transform-origin: center;
+}
+
+.bz-combo--max {
+  color: var(--obsidian);
+  background: var(--amber);
+  border-color: var(--amber);
+  box-shadow: 0 0 12px var(--glow-brass);
+}
+
+.bz-combo--pulse {
+  animation: bz-combo-pulse var(--dur-pulse) var(--ease-out);
+}
+
+.bz-combo--reset {
+  animation: bz-combo-flash 600ms ease-out;
+}
+
+/* ---------- Progress ---------- */
+
+.bz-progress {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 12px;
+  min-width: 220px;
+}
+
+.bz-progress__track {
+  grid-column: 1 / -1;
+  height: 10px;
+  background: var(--obsidian);
+  border: 1px solid var(--brass-dark);
+  overflow: hidden;
+}
+
+.bz-progress__fill {
+  --progress: 0;
+  display: block;
+  height: 100%;
+  width: calc(var(--progress) * 100%);
+  background: linear-gradient(90deg, var(--brass-dark), var(--brass) 60%, var(--amber));
+  transition: width 240ms var(--ease-out);
+}
+
+.bz-progress__count {
+  color: var(--text);
+  font-family: var(--font-display);
+}
+
+/* ---------- Counters ---------- */
+
+.bz-counters {
+  display: flex;
+  gap: 18px;
+  min-width: 220px;
+  justify-content: space-between;
+}
+
+.bz-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bz-counter__value {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.bz-counter--bad .bz-counter__value {
+  color: var(--crimson-text);
+}
+
+.bz-counter--shake {
+  animation: bz-shake var(--dur-shake) linear;
+}
+
+/* ---------- Trap lever and generic button ---------- */
+
+.bz-lever,
+.bz-button {
+  --c: var(--chamfer-small);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border: 0;
+  background: linear-gradient(180deg, var(--amber) 0%, var(--brass) 55%, var(--brass-dark) 100%);
+  color: var(--obsidian);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(
+    var(--c) 0,
+    100% 0,
+    100% calc(100% - var(--c)),
+    calc(100% - var(--c)) 100%,
+    0 100%,
+    0 var(--c)
+  );
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  transition: filter var(--dur-fast) linear, transform var(--dur-fast) linear;
+}
+
+.bz-lever:hover,
+.bz-button:hover {
+  filter: brightness(1.12);
+}
+
+.bz-lever:active,
+.bz-button:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 3px 6px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.bz-lever:focus-visible,
+.bz-button:focus-visible,
+.bz-levels__item:focus-visible,
+.bz-budget__dismiss:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -4px;
+}
+
+.bz-lever[disabled],
+.bz-button[disabled] {
+  filter: grayscale(0.7) brightness(0.6);
+  cursor: not-allowed;
+}
+
+.bz-lever {
+  padding: 14px 22px;
+}
+
+.bz-lever__knob {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--crimson-text), var(--crimson) 55%, #7A1F23);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45), 0 0 8px var(--glow-crimson);
+}
+
+.bz-lever--shake {
+  animation: bz-shake var(--dur-shake) linear;
+}
+
+.bz-button--ghost {
+  background: var(--plate);
+  color: var(--amber);
+  box-shadow:
+    inset 0 0 0 2px var(--brass),
+    inset 0 1px 0 var(--plate-hi);
+}
+
+.bz-button--ghost:active {
+  box-shadow: inset 0 0 0 2px var(--amber), inset 0 3px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- Name pill ---------- */
+
+.bz-name-pill {
+  position: fixed;
+  z-index: var(--z-popup);
+  left: 0;
+  top: 0;
+  transform: translate(14px, 18px);
+  padding: 4px 12px;
+  background: var(--plate);
+  color: var(--amber);
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 8px var(--glow-brass);
+}
+
+/* ---------- Popups ---------- */
+
+.bz-popups {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-popup);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bz-popup {
+  position: absolute;
+  left: var(--popup-x, 50%);
+  top: var(--popup-y, 38%);
+  transform: translate(-50%, 0);
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-shadow: 0 0 6px var(--obsidian), 0 2px 2px var(--obsidian), 0 0 14px var(--obsidian);
+  opacity: 0;
+  animation: bz-popup-rise var(--dur-popup) var(--ease-out) forwards;
+}
+
+.bz-popup--gain { color: var(--teal); }
+.bz-popup--penalty { color: var(--crimson-text); }
+.bz-popup--alarm { color: var(--crimson-text); font-size: 32px; }
+
+/* ---------- Blocker callout ---------- */
+
+.bz-callout {
+  background: var(--plate);
+  box-shadow:
+    inset 0 0 0 2px var(--crimson),
+    inset 1px 1px 0 var(--plate-hi),
+    inset 0 0 22px rgba(229, 72, 77, 0.22);
+  animation: bz-shake var(--dur-shake) linear;
+}
+
+.bz-callout__text {
+  margin: 0;
+  color: var(--crimson-text);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* ---------- Over-budget notice (non-blocking) ---------- */
+
+.bz-budget {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+  background: var(--plate);
+  box-shadow:
+    inset 0 0 0 2px var(--amber),
+    inset 1px 1px 0 var(--plate-hi),
+    inset 0 0 18px rgba(245, 185, 66, 0.12);
+}
+
+.bz-budget__text {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.bz-budget__dismiss {
+  padding: 4px 12px;
+  background: transparent;
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  border-radius: 3px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.bz-budget__dismiss:hover {
+  background: rgba(245, 185, 66, 0.16);
+}
+
+/* ---------- Loading plate ---------- */
+
+.bz-loading {
+  position: fixed;
+  z-index: var(--z-overlay);
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 28px;
+  pointer-events: none;
+}
+
+.bz-loading__text {
+  margin: 0;
+  color: var(--amber);
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Gear drawn from a dashed ring (teeth) plus a hub. */
+.bz-loading__gear {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 7px dashed var(--brass);
+  border-radius: 50%;
+  animation: bz-gear-spin 3s linear infinite;
+}
+
+.bz-loading__gear::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 3px solid var(--brass-dark);
+  border-radius: 50%;
+  background: var(--obsidian);
+}
+
+.bz-loading__gear--small {
+  width: 28px;
+  height: 28px;
+  border-width: 5px;
+  border-color: var(--amber);
+  animation-direction: reverse;
+  animation-duration: 2s;
+}
+
+.bz-loading__gear--small::after {
+  inset: 2px;
+  border-width: 2px;
+}
+
+/* ---------- Completion overlay and recovery screens ---------- */
+
+.bz-overlay,
+.bz-recovery {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--scrim);
+}
+
+/* Lighter than the recovery scrim, so the glowing deadlock cycle stays visible behind the plate. */
+.bz-overlay {
+  background: rgba(13, 15, 20, 0.56);
+}
+.bz-overlay__plate,
+.bz-recovery__plate {
+  --c: 18px;
+  width: min(520px, 100%);
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow:
+    inset 1px 1px 0 var(--plate-hi),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.04),
+    inset -1px -1px 0 var(--plate-lo),
+    inset 0 0 0 2px var(--brass-dark),
+    inset 0 0 0 4px var(--plate),
+    inset 0 0 0 5px var(--brass);
+}
+
+.bz-overlay__title,
+.bz-recovery__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.bz-overlay__title--victory { color: var(--teal); }
+.bz-overlay__title--interlock { color: var(--amber); }
+
+.bz-recovery__body {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.bz-recovery__detail {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.bz-recovery--webgl .bz-recovery__title {
+  color: var(--crimson-text);
+}
+
+.bz-stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 24px;
+  margin: 0;
+}
+
+.bz-stats__label,
+.bz-stats__value {
+  margin: 0;
+}
+
+.bz-stats__value {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 20px;
+  text-align: right;
+}
+
+.bz-overlay__actions,
+.bz-recovery__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ---------- Narrow screens ---------- */
+
+@media (max-width: 720px) {
+  .bz-hud__top-center {
+    top: calc(var(--hud-gap) + 120px);
+  }
+
+  .bz-hud__bottom-left {
+    bottom: calc(var(--hud-gap) + 76px);
+    max-width: calc(100vw - 2 * var(--hud-gap));
+  }
+
+  .bz-hud__bottom-center {
+    bottom: calc(var(--hud-gap) + 76px + 120px);
+  }
+
+  .bz-overlay__plate,
+  .bz-recovery__plate {
+    padding: 20px;
+  }
+}
+
+/* ---------- Keyframes ---------- */
+
+@keyframes bz-combo-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 var(--glow-brass); }
+  40% { transform: scale(1.3); box-shadow: 0 0 16px 4px var(--glow-brass); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes bz-combo-flash {
+  0% { color: var(--crimson-text); border-color: var(--crimson); box-shadow: 0 0 16px 4px var(--glow-crimson); transform: scale(0.9); }
+  100% { color: var(--amber); border-color: var(--brass); box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+}
+
+@keyframes bz-shake {
+  0%, 100% { translate: 0 0; }
+  15% { translate: -6px 0; }
+  30% { translate: 5px 0; }
+  45% { translate: -4px 0; }
+  60% { translate: 3px 0; }
+  75% { translate: -2px 0; }
+}
+
+@keyframes bz-popup-rise {
+  0% { opacity: 0; transform: translate(-50%, 10px) scale(0.85); }
+  12% { opacity: 1; transform: translate(-50%, 0) scale(1.08); }
+  25% { transform: translate(-50%, -6px) scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -56px) scale(1); }
+}
+
+@keyframes bz-popup-fade {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes bz-gear-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Reduced motion ---------- */
+/* Disables shake, pulse, flash scaling, gear spin and popup travel.
+   Cues stay visible through color, text and fades. */
+
+@media (prefers-reduced-motion: reduce) {
+  .bz-combo--pulse,
+  .bz-counter--shake,
+  .bz-lever--shake,
+  .bz-callout,
+  .bz-loading__gear,
+  .bz-loading__gear--small {
+    animation: none;
+  }
+
+  /* The reset flash keeps its color change but loses the scale and glow motion. */
+  .bz-combo--reset {
+    animation: none;
+    color: var(--crimson-text);
+    border-color: var(--crimson);
+  }
+
+  .bz-popup {
+    animation: bz-popup-fade var(--dur-popup) linear forwards;
+    transform: translate(-50%, 0);
+  }
+
+  .bz-progress__fill,
+  .bz-levels__item,
+  .bz-lever,
+  .bz-button {
+    transition: none;
+  }
+
+  .bz-lever:active,
+  .bz-button:active {
+    transform: none;
+  }
+}
+
+/* ======================================================================
+   Part 2: hint, sound, campaign, stars
+   ====================================================================== */
+
+/* Interactive controls opt back in to pointer events inside `.bz-hud`. */
+.bz-chips,
+.bz-chip,
+.bz-hint-button {
+  pointer-events: auto;
+}
+
+/* ---------- Top-left chips (campaign, sound) ---------- */
+.bz-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bz-chip {
+  --c: var(--chamfer-small);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 0;
+  background: var(--plate);
+  color: var(--amber);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(
+    var(--c) 0,
+    100% 0,
+    100% calc(100% - var(--c)),
+    calc(100% - var(--c)) 100%,
+    0 100%,
+    0 var(--c)
+  );
+  box-shadow:
+    inset 0 0 0 1px var(--brass-dark),
+    inset 1px 1px 0 var(--plate-hi),
+    inset -1px -1px 0 var(--plate-lo);
+  transition: background var(--dur-fast) linear, color var(--dur-fast) linear;
+}
+.bz-chip:hover {
+  background: #1d2330;
+  color: var(--text);
+}
+.bz-chip:focus-visible,
+.bz-drawer .bz-button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -3px;
+}
+.bz-chip--muted {
+  color: var(--text-muted);
+}
+.bz-chip--muted .bz-chip__icon {
+  text-decoration: line-through;
+}
+
+/* ---------- Hint button and banner ---------- */
+.bz-hint-button {
+  padding: 10px 18px;
+  font-size: 13px;
+}
+.bz-hint-button__count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--obsidian);
+  color: var(--amber);
+  font-size: 12px;
+  text-align: center;
+}
+.bz-hint-banner {
+  --c: var(--chamfer);
+  max-width: 100%;
+  padding: 10px 16px;
+  background: var(--plate);
+  color: var(--text);
+  clip-path: polygon(
+    var(--c) 0,
+    100% 0,
+    100% calc(100% - var(--c)),
+    calc(100% - var(--c)) 100%,
+    0 100%,
+    0 var(--c)
+  );
+  box-shadow:
+    inset 0 0 0 2px var(--teal),
+    inset 1px 1px 0 var(--plate-hi),
+    inset 0 0 22px rgba(45, 212, 191, 0.16);
+  animation: bz-hint-in 260ms var(--ease-out);
+}
+.bz-hint-banner--deadlock {
+  box-shadow:
+    inset 0 0 0 2px var(--amber),
+    inset 1px 1px 0 var(--plate-hi),
+    inset 0 0 22px rgba(245, 185, 66, 0.16);
+}
+.bz-hint-banner__text {
+  margin: 0;
+  color: var(--teal);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+.bz-hint-banner--deadlock .bz-hint-banner__text {
+  color: var(--amber);
+}
+.bz-hint-banner__meta {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ---------- Stars, badges, rating ---------- */
+.bz-stars {
+  display: inline-flex;
+  gap: 4px;
+  line-height: 1;
+}
+.bz-stars--sm { font-size: 15px; }
+.bz-stars--md { font-size: 20px; }
+.bz-stars--lg { font-size: 44px; gap: 10px; }
+.bz-star--on {
+  color: var(--amber);
+  text-shadow: 0 0 10px var(--glow-brass);
+}
+.bz-star--off {
+  color: var(--plate-hi);
+}
+.bz-rating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.bz-rating__best {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.bz-rating__detail {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.bz-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--brass-dark);
+  background: var(--obsidian);
+  color: var(--brass);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.bz-badge--apprentice { color: var(--teal); border-color: var(--teal); }
+.bz-badge--journeyman { color: var(--amber); border-color: var(--amber); }
+.bz-badge--deadlock-inspection { color: var(--crimson-text); border-color: var(--crimson); }
+.bz-badge--grandmaster-blitz { color: var(--obsidian); background: var(--brass); border-color: var(--amber); }
+.bz-badge--best {
+  padding: 5px 14px;
+  border: 0;
+  background: linear-gradient(180deg, var(--amber) 0%, var(--brass) 55%, var(--brass-dark) 100%);
+  color: var(--obsidian);
+  font-size: 15px;
+  box-shadow: 0 0 14px var(--glow-brass), inset 0 2px 0 rgba(255, 255, 255, 0.4);
+  animation: bz-combo-pulse 900ms var(--ease-out) 1;
+}
+
+/* ---------- Campaign drawer ---------- */
+.bz-drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  background: rgba(13, 15, 20, 0.5);
+  animation: bz-scrim-in 180ms linear;
+}
+.bz-drawer {
+  position: fixed;
+  top: var(--hud-gap);
+  bottom: var(--hud-gap);
+  left: var(--hud-gap);
+  z-index: 25;
+  width: min(400px, calc(100vw - 2 * var(--hud-gap)));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  background: var(--plate);
+  color: var(--text);
+  box-shadow:
+    0 0 0 1px var(--brass-dark),
+    0 12px 40px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px var(--plate-hi),
+    inset 0 0 0 3px var(--plate),
+    inset 0 0 0 4px var(--brass-dark);
+  animation: bz-drawer-in 220ms var(--ease-out);
+}
+.bz-drawer__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bz-drawer__title {
+  margin: 0;
+  color: var(--amber);
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.bz-drawer__total {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.bz-drawer__stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bz-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(13, 15, 20, 0.6);
+  border-left: 3px solid var(--brass-dark);
+}
+.bz-stage--active {
+  border-left-color: var(--amber);
+  background: rgba(245, 185, 66, 0.08);
+}
+.bz-stage__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bz-stage__number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--brass);
+  color: var(--obsidian);
+  font-size: 13px;
+  font-weight: 700;
+  flex: none;
+}
+.bz-stage__title {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+}
+.bz-stage__subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.bz-stage__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bz-stage__best {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.bz-button--small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+@keyframes bz-hint-in {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes bz-scrim-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes bz-drawer-in {
+  0% { opacity: 0; transform: translateX(-16px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bz-hint-banner,
+  .bz-drawer,
+  .bz-drawer-scrim,
+  .bz-badge--best {
+    animation: none;
+  }
+  .bz-chip {
+    transition: none;
+  }
+}

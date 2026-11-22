@@ -1,0 +1,60 @@
+/*
+ * Unbolt Blitz design tokens ("Clockwork Arcade").
+ *
+ * Palette values are fixed by Requirement 15. Text colors declared here
+ * (--text, --text-muted, --brass, --amber, --teal, --crimson-text) each reach a
+ * WCAG contrast ratio of at least 4.5:1 on both --plate and --obsidian.
+ *
+ * --crimson (#E5484D) is only used for fills, borders, glows and sparks.
+ * Crimson TEXT on a plate uses --crimson-text, because --crimson on --plate
+ * is about 4.45:1.
+ *
+ * No web font is loaded. The app works offline.
+ */
+:root {
+  /* Palette */
+  --obsidian: #0D0F14;
+  --plate: #161A23;
+  --brass: #D99B38;
+  --amber: #F5B942;
+  --teal: #2DD4BF;
+  --crimson: #E5484D;
+  --crimson-text: #FF7A7E;
+
+  /* Text */
+  --text: #E8E2D4;
+  --text-muted: #B4AE9C;
+
+  /* Bevel shades. Used for borders and shadows only, never for text. */
+  --plate-hi: #2B3342;
+  --plate-lo: #07080B;
+  --brass-dark: #8A5F1C;
+
+  /* Translucent surfaces and glows. Used for fills and shadows only. */
+  --scrim: rgba(13, 15, 20, 0.84);
+  --glow-brass: rgba(217, 155, 56, 0.45);
+  --glow-teal: rgba(45, 212, 191, 0.45);
+  --glow-crimson: rgba(229, 72, 77, 0.55);
+
+  /* Typography */
+  --font-display: "Rockwell", "Roboto Slab", Georgia, serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Geometry */
+  --chamfer: 10px;
+  --chamfer-small: 6px;
+  --hud-gap: 16px;
+  --plate-pad: 10px 16px;
+
+  /* Layering */
+  --z-hud: 10;
+  --z-popup: 20;
+  --z-overlay: 30;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-pulse: 360ms;
+  --dur-shake: 320ms;
+  --dur-popup: 1200ms;
+}
