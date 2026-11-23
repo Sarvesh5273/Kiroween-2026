@@ -162,6 +162,28 @@ export class MovingPartInStaticSetError extends UnboltCoreError {
   }
 }
 
+/** A straight move whose distance is not a finite number of at least 0. */
+export class InvalidMoveDistanceError extends UnboltCoreError {
+  readonly distance: PlainNumber;
+
+  constructor(distance: number) {
+    super("InvalidMoveDistance", `Move distance must be finite and at least 0; rejected ${formatRejected(distance)}`);
+    this.distance = plainNumber(distance);
+  }
+}
+
+/** A trajectory that names an unknown Part, repeats a Part, or has malformed straight-move params. */
+export class InvalidTrajectoryError extends UnboltCoreError {
+  readonly reason: "unknown_part" | "duplicate_step" | "duplicate_part" | "malformed_params";
+  readonly partId: string;
+
+  constructor(reason: InvalidTrajectoryError["reason"], partId: string, detail: string) {
+    super("InvalidTrajectory", `Trajectory ${reason.replace("_", " ")} for Part ${partId}: ${detail}`);
+    this.reason = reason;
+    this.partId = partId;
+  }
+}
+
 export class AssemblyNotNormalizedError extends UnboltCoreError {
   readonly measuredMaxExtent: PlainNumber;
 

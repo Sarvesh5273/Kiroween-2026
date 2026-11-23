@@ -22,6 +22,7 @@ export { createPrimitiveRegistry, createDefaultPrimitiveRegistry } from "./primi
 
 // Independent oracle and baseline.
 export { checkClashes } from "./oracle/clashChecker";
+export { verifyLinearMove, verifyTrajectory, combineVerdicts } from "./oracle/moveVerifier";
 export { computeNaiveRadialClashes } from "./stage4/naiveBaseline";
 
 // Configuration and constants.
@@ -40,6 +41,8 @@ export {
   MovingPartInStaticSetError,
   AssemblyNotNormalizedError,
   InvalidSolverConfigError,
+  InvalidMoveDistanceError,
+  InvalidTrajectoryError,
 } from "./errors";
 export type { PlainNumber, Stage1Component } from "./errors";
 

@@ -240,6 +240,88 @@ export interface ClashResult {
   }[];
 }
 
+// ---------------------------------------------------------------------------
+// Finite straight-move verification (spec crossed-bars-false-verified)
+// ---------------------------------------------------------------------------
+
+/** Outcome of one verified move, or of a whole plan. */
+export type MoveVerdict = "clear" | "blocked" | "unverified";
+
+export type MoveReason =
+  /** Clear: the swept moving box and the static box are more than Clearance_Epsilon apart. */
+  | "separated_boxes"
+  /** Clear: the surfaces stay at least Clearance_Epsilon apart over the whole move. */
+  | "separation_distance"
+  /** Clear: distance up to the contact, then one plane separates the Parts exactly. */
+  | "contact_plane"
+  /** Blocked: a point more than Clearance_Epsilon inside both Parts at some travel. */
+  | "penetration_witness"
+  /** Unverified: the step's primitive is not a straight `linear_slide`. */
+  | "unsupported_primitive"
+  /** Unverified: a mesh is not closed, so its interior is undefined. */
+  | "open_mesh"
+  /** Unverified: a closed mesh encloses non-positive volume, so it is not outward-wound. */
+  | "invalid_orientation"
+  /** Unverified: one Part lies inside the other at the start. */
+  | "nested_at_start"
+  /** Unverified: the start could not be shown to be interior-disjoint. */
+  | "initial_separation_unknown"
+  /** Unverified: contact occurs and neither a separating plane nor a witness settles it. */
+  | "contact_unresolved"
+  /** Unverified: the distance proof needed more steps than its bound. */
+  | "iteration_cap";
+
+/** The exact motion a verdict is about, in normalized coordinates. */
+export interface LinearMove {
+  partId: string;
+  dir: Vec3;
+  distance: number;
+  /** Part_IDs of the static Parts, ascending. */
+  presentPartIds: string[];
+}
+
+export interface PairVerification {
+  staticPartId: string;
+  verdict: MoveVerdict;
+  reason: MoveReason;
+  /** The numbers behind the reason. Only the fields of that reason are set. */
+  evidence: {
+    boxGap?: number;
+    minDistance?: number;
+    iterations?: number;
+    contactAt?: number;
+    normal?: Vec3;
+    overlap?: number;
+    travel?: number;
+    point?: Vec3;
+    depth?: number;
+  };
+}
+
+export interface MoveVerification {
+  move: LinearMove;
+  verdict: MoveVerdict;
+  /** One entry per static Part, ascending by Part_ID. */
+  pairs: PairVerification[];
+}
+
+export interface StepVerification {
+  partId: string;
+  primitive: string;
+  verdict: MoveVerdict;
+  /** `unsupported_primitive` for a step that was not checked, otherwise `null`. */
+  reason: MoveReason | null;
+  /** `null` for a step that was not checked. */
+  move: MoveVerification | null;
+  /** Static Part_IDs whose pair is Blocked, ascending. */
+  blockerIds: string[];
+}
+
+export interface TrajectoryVerification {
+  verdict: MoveVerdict;
+  steps: StepVerification[];
+}
+
 export type RegistryError =
   | { kind: "DuplicatePrimitiveName"; name: string; message: string }
   | { kind: "UnknownPrimitive"; name: string; message: string }

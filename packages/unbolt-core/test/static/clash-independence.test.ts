@@ -152,6 +152,41 @@ describe("Clash_Checker import isolation (Req 20.11)", () => {
   });
 });
 
+describe("finite move verifier import isolation (spec crossed-bars-false-verified)", () => {
+  const MOVE_ENTRY = "src/oracle/moveVerifier.ts";
+  const SOLVER_ENTRIES = ["src/stage3/peelSolver.ts", "src/stage3/stepVerifier.ts"] as const;
+
+  it("loads the verifier and the solver modules through the raw glob", () => {
+    expect(SOURCES.has(MOVE_ENTRY)).toBe(true);
+    for (const entry of SOLVER_ENTRIES) {
+      expect(SOURCES.has(entry), `${entry} should be present in the glob`).toBe(true);
+    }
+  });
+
+  it("reaches only types, config, errors and math helpers, never a stage, the PRNG or the legacy checker", () => {
+    const allowed = new Set([MOVE_ENTRY, "src/types.ts", "src/config.ts", "src/errors.ts", "src/math/vec3.ts", "src/math/aabb.ts"]);
+    const graph = walk(MOVE_ENTRY, SOURCES);
+    expect(graph.unresolved).toEqual([]);
+    expect([...graph.reachable].filter((file) => !allowed.has(file)).sort()).toEqual([]);
+    expect(graph.reachable.has("src/oracle/clashChecker.ts")).toBe(false);
+    expect(graph.reachable.has("src/config.ts")).toBe(true);
+  });
+
+  it("imports only three and three-mesh-bvh from outside the project", () => {
+    const graph = walk(MOVE_ENTRY, SOURCES);
+    expect([...graph.externals].filter((specifier) => !ALLOWED_EXTERNALS.has(specifier))).toEqual([]);
+    expect(graph.externals.has("three")).toBe(true);
+  });
+
+  it("is not reachable from the solver, which never reads its verdicts", () => {
+    for (const entry of SOLVER_ENTRIES) {
+      const graph = walk(entry, SOURCES);
+      expect(graph.unresolved).toEqual([]);
+      expect([...graph.reachable].filter((file) => file.startsWith("src/oracle/")), `${entry} reaches the oracle`).toEqual([]);
+    }
+  });
+});
+
 describe("import walker (guards against a vacuous pass)", () => {
   it("finds the sampler, PRNG, hit filter and ray caster from the DBG_Builder", () => {
     const graph = walk("src/stage2/dbgBuilder.ts", SOURCES);

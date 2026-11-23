@@ -42,6 +42,9 @@ const FUNCTION_EXPORTS = [
   "createPrimitiveRegistry",
   "createDefaultPrimitiveRegistry",
   "checkClashes",
+  "verifyLinearMove",
+  "verifyTrajectory",
+  "combineVerdicts",
   "computeNaiveRadialClashes",
   "validateConfig",
   "computeSamplingMetadata",
@@ -58,6 +61,8 @@ const ERROR_EXPORTS = [
   "MovingPartInStaticSetError",
   "AssemblyNotNormalizedError",
   "InvalidSolverConfigError",
+  "InvalidMoveDistanceError",
+  "InvalidTrajectoryError",
 ] as const;
 
 describe("public API surface at the package root (Req 30.1, 30.2, 30.5)", () => {
