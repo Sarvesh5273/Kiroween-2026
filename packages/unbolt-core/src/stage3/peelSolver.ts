@@ -278,6 +278,8 @@ export function runPeel(
         partId: selected.state.input.partId,
         dirIndex: selected.choice.dirIndex,
         dir: copyVec3(selected.state.input.candidateAxes[selected.choice.dirIndex] as Vec3),
+        // The exact travel Stage 4 compiles into `linear_slide.distance`.
+        distance: selected.choice.escapeDistance,
         unremovedPartIds: unremoved.filter(({ id }) => id !== selected.index).map(({ id }) => (states[id] as PartState).input.partId),
       });
       if (found.length > 0) {

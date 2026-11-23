@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { checkClashes } from "../../src/oracle/clashChecker";
+import { verifyLinearMove } from "../../src/oracle/moveVerifier";
 import { stage2BuildDbg } from "../../src/stage2/dbgBuilder";
 import { runPeel, stage3Peel, type PeelInput } from "../../src/stage3/peelSolver";
 import { createStepVerifier, type StepVerifier } from "../../src/stage3/stepVerifier";
@@ -78,14 +79,26 @@ describe("Stage 3 lazy exact step verification on the gearbox (Req 14.11)", () =
       const verified = runPeel(input, stage1.config, { verifyStep: recording }).plan;
       expect(verified).toEqual(plan);
       expect(refined.length).toBeGreaterThan(0);
+      // The verifier logs one detection per reported edge, in report order.
+      expect(verifier.detections.map((d) => [d.from, d.to, d.dirIndex])).toEqual(refined.map((edge) => [edge.from, edge.to, edge.dirIndex]));
       const partById = new Map(stage1.parts.map((part) => [part.partId, part]));
-      for (const edge of refined) {
+      refined.forEach((edge, index) => {
         const from = partById.get(edge.from);
         const to = partById.get(edge.to);
-        if (from === undefined || to === undefined) {
-          throw new Error(`refined edge ${edge.from} -> ${edge.to} names an unknown Part`);
+        const detection = verifier.detections[index];
+        if (from === undefined || to === undefined || detection === undefined) {
+          throw new Error(`refined edge ${edge.from} -> ${edge.to} names an unknown Part or has no detection`);
         }
-        expect(checkClashes(from, edge.dir, [to], stage1.config).count, `${edge.from} -> ${edge.to} along axis ${edge.dirIndex}`).toBeGreaterThan(0);
+        const label = `${edge.from} -> ${edge.to} along axis ${edge.dirIndex} (${detection.stage})`;
+        if (detection.stage === "ray") {
+          // Stage A edges: a legacy ray hit, at full strength.
+          expect(checkClashes(from, edge.dir, [to], stage1.config).count, label).toBeGreaterThan(0);
+        } else {
+          // Stage B edges can have no legacy ray hit by design, so they must be confirmed by the
+          // independent verifier for the exact move: a point more than epsilon inside both Parts.
+          expect(detection.stage).toBe("edge_sweep");
+          expect(verifyLinearMove(from, detection.dir, detection.distance, [to], stage1.config).verdict, label).toBe("blocked");
+        }
         for (const [list, triangleCount] of [
           [edge.fromTriangles, from.triangles.length / 3],
           [edge.toTriangles, to.triangles.length / 3],
@@ -96,7 +109,7 @@ describe("Stage 3 lazy exact step verification on the gearbox (Req 14.11)", () =
             if (i > 0) expect(triangle).toBeGreaterThan(list[i - 1] as number);
           });
         }
-      }
+      });
       // The refined edges are new: none of them is in the Stage 2 graph.
       const sampled = new Set(input.edges.map((edge) => `${edge.from}\u0000${edge.to}\u0000${edge.dirIndex}`));
       expect(refined.filter((edge) => sampled.has(`${edge.from}\u0000${edge.to}\u0000${edge.dirIndex}`))).toEqual([]);
