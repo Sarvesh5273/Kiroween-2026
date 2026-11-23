@@ -6,6 +6,8 @@
 
 UnboltKit is a TypeScript toolkit for finding disassembly sequences from 3D mesh geometry. **Guide Forge** uses it to write repair instructions. **Unbolt Blitz** puts the same assembly under the player's cursor and lets them try the moves.
 
+**[Open Guide Forge](https://unboltkit-guide-forge.vercel.app/)** · **[Play Unbolt Blitz](https://unboltkit-blitz.vercel.app/)** — both run in your browser without signing in.
+
 [Run locally](#run-locally) · [Get the ring model](apps/guide-forge/src/examples/removable-cap.glb) · [Build with the engine](#build-with-the-engine) · [How we used Kiro](#how-we-used-kiro)
 
 ## Guide Forge · Check a move before you write the instruction
