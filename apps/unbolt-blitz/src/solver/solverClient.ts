@@ -1,4 +1,6 @@
+import type { MoveVerification } from "@unboltkit/core";
 import type {
+  StraightMoveRequest,
   SolveFailure,
   SolveResult,
   SolveSource,
@@ -14,6 +16,10 @@ import type {
  * terminated, so its result can never arrive (latest request wins). Messages whose `requestId` is not
  * the latest id are dropped as a second guard. This file imports no Core runtime code, so no BVH or
  * DBG code is bundled into the main thread.
+ *
+ * After a successful solve the worker stays alive with that solve's parts, so `checkMove` can ask it
+ * to check one explicit straight move. Rejected and failed solves still release their worker. A new
+ * solve or `dispose` terminates the worker, and any check still waiting is never answered.
  */
 
 /** The part of `Worker` that the client uses. A real `Worker` satisfies it, and tests pass a fake. */
@@ -35,7 +41,18 @@ export interface SolveHandlers {
   onFailure: (requestId: number, failure: SolveFailure) => void;
 }
 
+export interface CheckHandlers {
+  onResult: (verification: MoveVerification, elapsedMs: number) => void;
+  /** A `checkFailure` message, a worker error, or no worker to ask. */
+  onFailure: (failure: SolveFailure) => void;
+}
+
 export interface SolverClient {
+  /**
+   * Asks the worker of the latest solve to check one straight move. Returns false, without calling
+   * a handler, when there is no live worker for the latest solve.
+   */
+  checkMove(attemptId: number, move: StraightMoveRequest, handlers: CheckHandlers): boolean;
   /** Starts a solve and returns its `requestId`. Terminates a pending solve first. */
   solve(source: SolveSource, transfer: Transferable[], handlers: SolveHandlers): number;
   /** Terminates any pending worker. Later `solve` calls throw. */
@@ -57,6 +74,8 @@ export function createSolverClient(makeWorker: WorkerFactory = createBlitzWorker
   let latestId = 0;
   let worker: WorkerLike | null = null;
   let disposed = false;
+  /** Checks waiting for the current worker, by attempt id. */
+  let pendingChecks = new Map<number, CheckHandlers>();
 
   function terminateWorker(): void {
     if (worker !== null) {
@@ -66,6 +85,7 @@ export function createSolverClient(makeWorker: WorkerFactory = createBlitzWorker
       stale.onerror = null;
       stale.terminate();
     }
+    pendingChecks = new Map();
   }
 
   return {
@@ -96,7 +116,7 @@ export function createSolverClient(makeWorker: WorkerFactory = createBlitzWorker
       }
       worker = created;
 
-      /** One worker serves one solve, so it is released as soon as that solve has ended. */
+      /** A rejected or failed solve releases its worker. A solved one keeps it for move checks. */
       const finish = (): void => {
         if (worker === created) {
           terminateWorker();
@@ -113,9 +133,17 @@ export function createSolverClient(makeWorker: WorkerFactory = createBlitzWorker
             handlers.onProgress?.(requestId, message.stage, message.state);
             break;
           case "solved":
-            finish();
             handlers.onSolved(requestId, message.result);
             break;
+          case "checkResult":
+          case "checkFailure": {
+            const check = pendingChecks.get(message.attemptId);
+            if (check === undefined) return;
+            pendingChecks.delete(message.attemptId);
+            if (message.type === "checkResult") check.onResult(message.verification, message.elapsedMs);
+            else check.onFailure(message.failure);
+            break;
+          }
           case "rejected":
             finish();
             handlers.onRejected(requestId, message.rejection);
@@ -131,12 +159,15 @@ export function createSolverClient(makeWorker: WorkerFactory = createBlitzWorker
         if (requestId !== latestId || worker !== created) {
           return;
         }
-        finish();
-        handlers.onFailure(requestId, {
+        const failure: SolveFailure = {
           name: "WorkerError",
           code: null,
           message: event.message || "The solver worker raised an unhandled error.",
-        });
+        };
+        const checks = [...pendingChecks.values()];
+        finish();
+        handlers.onFailure(requestId, failure);
+        for (const check of checks) check.onFailure(failure);
       };
 
       try {
@@ -149,6 +180,26 @@ export function createSolverClient(makeWorker: WorkerFactory = createBlitzWorker
       return requestId;
     },
 
+    checkMove(attemptId, move, handlers) {
+      if (disposed || worker === null) return false;
+      const current = worker;
+      pendingChecks.set(attemptId, handlers);
+      try {
+        current.postMessage(
+          {
+            type: "check",
+            requestId: latestId,
+            attemptId,
+            move: { partId: move.partId, dir: [move.dir[0], move.dir[1], move.dir[2]], distance: move.distance, staticPartIds: [...move.staticPartIds] },
+          },
+          [],
+        );
+      } catch (thrown) {
+        pendingChecks.delete(attemptId);
+        handlers.onFailure(failureFromThrown(thrown));
+      }
+      return true;
+    },
     dispose() {
       disposed = true;
       terminateWorker();

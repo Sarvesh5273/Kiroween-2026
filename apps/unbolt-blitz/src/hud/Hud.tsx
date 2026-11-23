@@ -3,6 +3,7 @@ import { outcome } from "../game/selectors";
 import type { GameStore } from "../game/store";
 import { campaignStore, hintSession, soundModule } from "../modules/registry";
 import type { BundledLevelId } from "../protocol";
+import { AttemptAxisControl } from "./AttemptAxisControl";
 import { BlockerCallout } from "./BlockerCallout";
 import { CampaignDrawer } from "./CampaignDrawer";
 import { CompletionOverlay } from "./CompletionOverlay";
@@ -104,6 +105,7 @@ export function Hud({ store, controller, hover }: HudProps) {
             <span className="bz-bar__sep" aria-hidden="true" />
             <SoundToggle sound={soundModule} />
           </div>
+          <AttemptAxisControl store={store} controller={controller} />
         </div>
         <div className="bz-hud__top-center">
           <Stopwatch store={store} />

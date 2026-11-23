@@ -11,7 +11,8 @@
  *   rethrown during render, so the nearest error boundary receives it.
  * - `onPartsShown(epoch)` dispatches `ARENA_READY`, which starts the stopwatch
  *   once the meshes are on screen (Req 13.10).
- * - Clicks dispatch `PART_CLICKED` through `createPartClickHandler`.
+ * - Clicks go to the `onPartClick` prop (the controller's `clickPart`, which also handles explicit
+ *   attempts), or dispatch `PART_CLICKED` through `createPartClickHandler` when no prop is given.
  * - A hint request from the hint session draws the ghost through `arena.showGhostHint`.
  * - Hover is forwarded to the `onHover` prop for the HUD name pill (Req 10.2).
  */
@@ -29,17 +30,21 @@ export interface ArenaViewProps {
   hints?: HintSession | undefined;
   /** Hovered part changed, or the pointer moved over it. Null id: nothing hovered. */
   onHover?: ((partId: string | null, clientX: number, clientY: number) => void) | undefined;
+  /** Part click handler. Defaults to dispatching `PART_CLICKED`. */
+  onPartClick?: ((partId: string, atMs: number) => void) | undefined;
 }
 
 type HostFailure = { kind: "webgl" } | { kind: "error"; error: unknown };
 
-export function ArenaView({ store, hints, onHover }: ArenaViewProps) {
+export function ArenaView({ store, hints, onHover, onPartClick }: ArenaViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [failure, setFailure] = useState<HostFailure | null>(null);
 
   // Latest hover callback without recreating the Arena when the prop identity changes.
   const onHoverRef = useRef(onHover);
   onHoverRef.current = onHover;
+  const onPartClickRef = useRef(onPartClick);
+  onPartClickRef.current = onPartClick;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -49,7 +54,10 @@ export function ArenaView({ store, hints, onHover }: ArenaViewProps) {
     try {
       arena = new Arena({
         canvas,
-        onPartClick: createPartClickHandler(store),
+        onPartClick: (() => {
+          const fallback = createPartClickHandler(store);
+          return (partId: string, atMs: number) => (onPartClickRef.current ?? fallback)(partId, atMs);
+        })(),
         onHover: (partId, clientX, clientY) => onHoverRef.current?.(partId, clientX, clientY),
         onPartsShown: (epoch) => {
           store.dispatch({ type: "ARENA_READY", epoch, at: performance.now() });

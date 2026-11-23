@@ -15,6 +15,8 @@ export interface HudController {
   selectLevel(levelId: BundledLevelId): void;
   /** Opens the hidden file input of the shell (Req 13.11). */
   openFilePicker(): void;
+  /** Chooses the axis for explicit attempts, or null (Auto) for the normal game. */
+  setAttemptAxis(axis: import("../game/blitzEngine").ExplicitAxis | null): void;
 }
 
 /** Name of the custom-upload entry. The campaign drawer shows the same action as "Upload Custom .glb". */

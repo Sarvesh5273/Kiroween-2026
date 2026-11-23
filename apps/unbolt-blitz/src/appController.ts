@@ -6,15 +6,20 @@
  *
  *   LEVEL_REQUESTED, then LEVEL_LOADED | SOLVE_REJECTED | SOLVE_FAILED  (all with the same requestId)
  *
+ * A part click goes through `clickPart`. With no attempt axis chosen it is the normal game
+ * (`PART_CLICKED`). With an axis chosen it is an explicit attempt along exactly that axis; a straight
+ * one is sent to the worker, which runs Core's `verifyLinearMove` on the move the Arena would play,
+ * and the answer comes back as `EXPLICIT_ATTEMPT_CHECKED` with the attempt's id.
+ *
  * An over-budget result is loaded like any other: the warning rides on `LoadedLevel.overBudget` and no
  * recovery screen is shown. Every load gets an epoch that no earlier load of this controller used.
  */
 import { createEngineDeps } from "./engineDeps";
 import { createEngineLevel } from "./game/blitzEngine";
-import type { EngineDeps } from "./game/blitzEngine";
+import type { EngineDeps, ExplicitAxis } from "./game/blitzEngine";
 import { deriveDisplayNames } from "./game/displayNames";
 import { loadedLevelFromSolve } from "./game/gameState";
-import type { GameState, LevelRef, LoadedLevel } from "./game/gameState";
+import type { GameAction, GameState, LevelRef, LoadedLevel } from "./game/gameState";
 import { toEngineLevelInput } from "./game/levelData";
 import { createGameStore } from "./game/store";
 import type { GameStore } from "./game/store";
@@ -58,6 +63,10 @@ export interface AppController {
   bindFilePicker(open: () => void): () => void;
   /** Opens the file picker, when one is bound. */
   openFilePicker(): void;
+  /** A click on a part in the Arena, at `at` on the `performance.now()` clock. */
+  clickPart(partId: string, at: number): void;
+  /** Chooses the axis for explicit attempts, or null for the normal game. */
+  setAttemptAxis(axis: ExplicitAxis | null): void;
   flagTrap(): void;
   replay(): void;
   dismissRecovery(): void;
@@ -92,6 +101,7 @@ export function createAppController(options: AppControllerOptions = {}): AppCont
   /** Increases on every load request, so a slower import of an older file is dropped. */
   let loadToken = 0;
   let openPicker: (() => void) | null = null;
+  let attemptCounter = 0;
   const moduleUnsubscribers: Array<() => void> = [];
   const registeredModules: GameModule[] = [];
 
@@ -241,6 +251,48 @@ export function createAppController(options: AppControllerOptions = {}): AppCont
     return unsubscribeAll;
   }
 
+  function clickPart(partId: string, at: number): void {
+    if (disposed) return;
+    const axis = store.getState().attemptAxis;
+    if (axis === null) {
+      store.dispatch({ type: "PART_CLICKED", partId, at });
+      return;
+    }
+    attemptCounter += 1;
+    const attemptId = attemptCounter;
+    store.dispatch({ type: "EXPLICIT_ATTEMPT", partId, axis, attemptId, at });
+    const pending = store.getState().pendingAttempt;
+    // A helical attempt, a rejected click or a click during another check sends nothing.
+    if (pending === null || pending.attemptId !== attemptId) return;
+    const { plan } = pending;
+    const answer = (result: Parameters<typeof dispatchChecked>[1]): void => dispatchChecked(attemptId, result);
+    const sent = client.checkMove(
+      attemptId,
+      { partId: plan.partId, dir: plan.dir, distance: plan.travel, staticPartIds: plan.staticPartIds },
+      {
+        onResult: (verification) =>
+          answer({
+            kind: "verdict",
+            check: {
+              verdict: verification.verdict,
+              move: verification.move,
+              blockerIds: verification.pairs.filter((pair) => pair.verdict === "blocked").map((pair) => pair.staticPartId),
+            },
+          }),
+        onFailure: (failure) => answer({ kind: "error", message: failure.message }),
+      },
+    );
+    if (!sent) answer({ kind: "error", message: "No solver worker is available for this level." });
+  }
+
+  function dispatchChecked(
+    attemptId: number,
+    result: Extract<GameAction, { type: "EXPLICIT_ATTEMPT_CHECKED" }>["result"],
+  ): void {
+    if (disposed) return;
+    store.dispatch({ type: "EXPLICIT_ATTEMPT_CHECKED", attemptId, result, at: now() });
+  }
+
   registerModules(options.modules ?? GAME_MODULES);
 
   return {
@@ -271,6 +323,11 @@ export function createAppController(options: AppControllerOptions = {}): AppCont
       openPicker?.();
     },
 
+    clickPart,
+    setAttemptAxis(axis) {
+      if (disposed) return;
+      store.dispatch({ type: "ATTEMPT_AXIS_SET", axis, at: now() });
+    },
     flagTrap() {
       if (disposed) return;
       store.dispatch({ type: "TRAP_FLAGGED", at: now() });

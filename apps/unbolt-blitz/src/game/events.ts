@@ -10,6 +10,14 @@
  */
 import type { TrajectoryStep } from "@unboltkit/core";
 import type { LevelOutcome } from "./blitzEngine";
+/**
+ * What decided a removal or a block. `blocking_graph`: the normal click, or an explicit helical
+ * unscrew, decided from the solver's blocking graph (not an independent check). `checked_straight`:
+ * an explicit straight attempt decided by Core's `verifyLinearMove` on the exact move played.
+ */
+export type DecisionBasis = "blocking_graph" | "checked_straight";
+/** `cancelled`: the player changed the attempt axis (or chose Auto) before the check answered. */
+export type UnresolvedReason = "unverified" | "stale" | "not_extracted" | "error" | "cancelled";
 
 export interface CompletionSummary {
   score: number;
@@ -29,6 +37,9 @@ export type GameEvent =
       at: number;
       partId: string;
       step: TrajectoryStep;
+      basis: DecisionBasis;
+      /** The candidate axis the part left along. */
+      axisIndex: number;
       points: number;
       fastenerBonus: number;
       awarded: number;
@@ -44,6 +55,9 @@ export type GameEvent =
       at: number;
       partId: string;
       blockerIds: string[];
+      basis: DecisionBasis;
+      /** The candidate axis that was tried (or, for the normal click, the least blocked one). */
+      axisIndex: number;
       comboBefore: number;
       comboAfter: 1;
       penaltyMs: 3000;
@@ -55,7 +69,27 @@ export type GameEvent =
       seq: number;
       at: number;
       partId: string;
-      reason: "unknown_part" | "not_live" | "level_complete";
+      reason: "unknown_part" | "not_live" | "level_complete" | "attempt_pending";
+    }
+  | {
+      /** A straight explicit attempt is being checked. Nothing has moved or scored yet. */
+      kind: "attempt_checking";
+      seq: number;
+      at: number;
+      partId: string;
+      axisIndex: number;
+      travel: number;
+      staticPartIds: string[];
+    }
+  | {
+      /** A straight explicit attempt ended without a usable verdict: no removal, no score, no mistake. */
+      kind: "attempt_unresolved";
+      seq: number;
+      at: number;
+      partId: string;
+      axisIndex: number;
+      reason: UnresolvedReason;
+      detail: string;
     }
   | { kind: "trap_flagged"; seq: number; at: number; sccs: string[][]; bonus: 1000; scoreAfter: number }
   | {

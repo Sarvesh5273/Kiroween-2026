@@ -6,7 +6,7 @@ import {
   stage3Peel,
   stage4Compile,
 } from "@unboltkit/core";
-import type { TrajectoryStep } from "@unboltkit/core";
+import type { Stage1Result, TrajectoryStep } from "@unboltkit/core";
 import type {
   BlitzEdge,
   OverBudgetWarning,
@@ -29,6 +29,8 @@ export interface BlitzSolveDeps {
   stage4Compile: typeof stage4Compile;
   now: () => number;
   onStage: (stage: StageName, state: "started" | "completed") => void;
+  /** Receives a valid Stage 1 result, so the worker can keep the parts for move checks. */
+  onStage1Ready: (stage1: Stage1Result) => void;
 }
 
 export type BlitzSolveOutcome =
@@ -44,6 +46,7 @@ function defaultDeps(): BlitzSolveDeps {
     stage4Compile,
     now: () => performance.now(),
     onStage: () => undefined,
+    onStage1Ready: () => undefined,
   };
 }
 
@@ -81,6 +84,7 @@ export function solveRoot(root: Object3D, overrides: Partial<BlitzSolveDeps> = {
   if (stage1.status === "error") {
     return { kind: "rejected", rejection: mapCoreError(stage1.error) };
   }
+  d.onStage1Ready(stage1);
 
   const graph = timed("stage2", () => d.stage2BuildDbg(stage1, stage1.config));
   const plan = timed("stage3", () => d.stage3Peel(stage1, graph, stage1.config));

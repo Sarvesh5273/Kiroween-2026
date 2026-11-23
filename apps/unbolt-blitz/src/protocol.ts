@@ -1,4 +1,4 @@
-import type { DeadlockedPlan, SolvedPlan, TrajectoryStep, Vec3 } from "@unboltkit/core";
+import type { DeadlockedPlan, MoveVerification, SolvedPlan, TrajectoryStep, Vec3 } from "@unboltkit/core";
 
 /** Plain-data types shared by the main thread and the Blitz_Worker. No React, DOM or runtime imports. */
 
@@ -107,8 +107,29 @@ export interface SolveFailure {
   message: string;
 }
 
+/**
+ * One straight move to check against the solve's own Stage 1 parts, in normalized units (the
+ * units of `PartRenderData` and of every `TrajectoryStep` the engine builds).
+ */
+export interface StraightMoveRequest {
+  partId: string;
+  dir: Vec3;
+  distance: number;
+  /** Every other live part, ascending. */
+  staticPartIds: string[];
+}
+export interface CheckMoveMessage {
+  type: "check";
+  /** The solve whose parts the move is about. */
+  requestId: number;
+  attemptId: number;
+  move: StraightMoveRequest;
+}
+export type WorkerInMessage = SolveRequestMessage | CheckMoveMessage;
 export type WorkerOutMessage =
   | { type: "progress"; requestId: number; stage: StageName; state: "started" | "completed" }
   | { type: "solved"; requestId: number; result: SolveResult }
   | { type: "rejected"; requestId: number; rejection: WorkerRejection }
-  | { type: "failure"; requestId: number; failure: SolveFailure };
+  | { type: "failure"; requestId: number; failure: SolveFailure }
+  | { type: "checkResult"; requestId: number; attemptId: number; verification: MoveVerification; elapsedMs: number }
+  | { type: "checkFailure"; requestId: number; attemptId: number; failure: SolveFailure };

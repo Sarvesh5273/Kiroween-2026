@@ -5,6 +5,14 @@
  * imports no React, DOM or Three.js code, and only types from the game and protocol layers.
  */
 import type { GameEvent } from "../game/events";
+
+/** Labels of the six explicit axes, by candidate-axis index (+X, -X, +Y, -Y, +Z, -Z). */
+export const AXIS_LABELS: readonly string[] = ["+X", "\u2212X", "+Y", "\u2212Y", "+Z", "\u2212Z"];
+
+/** `+Y` for an explicit axis index, `axis 7` for any other candidate axis. */
+export function axisLabel(axisIndex: number): string {
+  return AXIS_LABELS[axisIndex] ?? `axis ${axisIndex}`;
+}
 import type { OverBudgetWarning } from "../protocol";
 
 /** How long the Blocker_Callout stays visible after the latest blocked event (Req 12.7). */
@@ -76,10 +84,38 @@ export function calloutText(blockerIds: readonly string[], names: NameMap): stri
 }
 
 /**
+ * Callout text for an explicit attempt, or null for events that are not about one. A checked
+ * straight block names the blocker found by that check. A checked removal says it was checked
+ * straight. An unresolved attempt says plainly that nothing was scored or penalized.
+ */
+export function attemptCalloutText(e: GameEvent, names: NameMap): string | null {
+  switch (e.kind) {
+    case "attempt_checking":
+      return `CHECKING ${nameOf(e.partId, names)} ${axisLabel(e.axisIndex)}\u2026`;
+    case "attempt_unresolved": {
+      const head = e.reason === "cancelled" ? "CANCELLED" : "NOT VERIFIED";
+      return `${head}: ${nameOf(e.partId, names)} ${axisLabel(e.axisIndex)}. ${e.detail} No score, no penalty.`;
+    }
+    case "part_blocked":
+      return e.basis === "checked_straight" ? `${calloutText(e.blockerIds, names)} (checked ${axisLabel(e.axisIndex)})` : null;
+    case "part_removed":
+      return e.basis === "checked_straight"
+        ? `CLEAR ${axisLabel(e.axisIndex)}: ${nameOf(e.partId, names)} removed (straight move checked)`
+        : null;
+    default:
+      return null;
+  }
+}
+
+/**
  * Next callout state. A blocked event replaces the text and restarts the 3000 ms window
  * (Req 12.8). A new level clears it. Other events leave it unchanged.
  */
 export function calloutReducer(prev: Callout | null, e: GameEvent, names: NameMap): Callout | null {
+  const attempt = attemptCalloutText(e, names);
+  if (attempt !== null) {
+    return { text: attempt, startedAt: e.at, expiresAt: e.at + CALLOUT_DURATION_MS };
+  }
   if (e.kind === "part_blocked") {
     return {
       text: calloutText(e.blockerIds, names),
@@ -158,15 +194,24 @@ export function completionModel(e: GameEvent): CompletionModel | null {
 
 /**
  * Text for the `aria-live` region (Req 12.9, 16.6). Returns a non-empty string for
- * `part_removed`, `part_blocked`, `false_alarm`, `trap_flagged` and `level_completed`,
- * and an empty string for every other kind. The blocked text equals the callout text.
+ * `part_removed`, `part_blocked`, `attempt_checking`, `attempt_unresolved`, `false_alarm`,
+ * `trap_flagged` and `level_completed`, and an empty string for every other kind. The blocked
+ * text equals the callout text.
  */
 export function describeEvent(e: GameEvent, names: NameMap): string {
   switch (e.kind) {
-    case "part_removed":
-      return `Unbolted ${nameOf(e.partId, names)}. Plus ${e.awarded} points. Combo x${e.comboAfter}.`;
+    case "part_removed": {
+      const how =
+        e.basis === "checked_straight"
+          ? ` Straight move ${axisLabel(e.axisIndex)} checked clear.`
+          : "";
+      return `Unbolted ${nameOf(e.partId, names)}.${how} Plus ${e.awarded} points. Combo x${e.comboAfter}.`;
+    }
     case "part_blocked":
-      return calloutText(e.blockerIds, names);
+      return attemptCalloutText(e, names) ?? calloutText(e.blockerIds, names);
+    case "attempt_checking":
+    case "attempt_unresolved":
+      return attemptCalloutText(e, names) ?? "";
     case "false_alarm":
       return "False alarm. Minus 250 points and plus 3 seconds. Combo reset to x1.";
     case "trap_flagged": {

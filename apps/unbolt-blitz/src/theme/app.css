@@ -1232,6 +1232,32 @@ button {
 .bz-chip:active {
   background: rgba(217, 155, 56, 0.26);
 }
+.bz-chip[aria-pressed="true"].bz-axis__chip {
+  background: rgba(217, 155, 56, 0.26);
+  box-shadow: inset 0 0 0 1px var(--brass-soft);
+}
+.bz-axis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 4px 8px;
+  pointer-events: auto;
+  border-radius: 10px;
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--brass-soft);
+}
+.bz-axis__label {
+  margin-right: 4px;
+  font-size: 12px;
+  color: var(--brass-bright);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.bz-axis__chip {
+  padding: 2px 8px;
+}
 .bz-chip[aria-expanded="true"] {
   background: rgba(217, 155, 56, 0.18);
   box-shadow: inset 0 0 0 1px var(--brass-soft);

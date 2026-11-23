@@ -9,12 +9,15 @@ import {
   attemptUnbolt,
   createEngine,
   flagDeadlockTrap,
+  planExplicitAttempt,
   removedCount,
+  resolveExplicitHelical,
+  resolveExplicitStraight,
 } from "./blitzEngine";
-import type { EngineState } from "./blitzEngine";
-import type { CompletionSummary, GameEvent, GameEventDraft } from "./events";
+import type { EngineState, ExplicitAxis, UnboltResult } from "./blitzEngine";
+import type { CompletionSummary, DecisionBasis, GameEvent, GameEventDraft, UnresolvedReason } from "./events";
 import { INITIAL_CLOCK } from "./gameState";
-import type { GameAction, GameClock, GameState, LoadedLevel } from "./gameState";
+import type { AttemptCheckResult, GameAction, GameClock, GameState, LoadedLevel } from "./gameState";
 
 /** Stamps `seq` and `at` on each draft and appends it to the log. */
 function withEvents(state: GameState, at: number, drafts: readonly GameEventDraft[]): GameState {
@@ -38,6 +41,7 @@ function resetPerLevel(state: GameState): GameState {
     finalElapsedMs: null,
     nextEventSeq: 0,
     events: [],
+    pendingAttempt: null,
   };
 }
 
@@ -82,21 +86,22 @@ function settle(state: GameState, engine: EngineState, at: number): {
   return { state: { ...state, engine, clock, finalElapsedMs }, completedElapsedMs: finalElapsedMs };
 }
 
-function partClicked(state: GameState, partId: string, at: number): GameState {
-  const engine = state.engine;
-  if (engine === null || currentLoaded(state) === null) return state;
-
-  const { state: nextEngine, result } = attemptUnbolt(engine, partId);
-  if (result.kind === "rejected") {
-    return withEvents(state, at, [{ kind: "click_rejected", partId, reason: result.reason }]);
-  }
-
+/** Events and state for an engine result that removed or blocked a part. */
+function applyUnbolt(
+  state: GameState,
+  nextEngine: EngineState,
+  result: Extract<UnboltResult, { kind: "legal" | "blocked" }>,
+  basis: DecisionBasis,
+  at: number,
+): GameState {
   if (result.kind === "blocked") {
     return withEvents({ ...state, engine: nextEngine }, at, [
       {
         kind: "part_blocked",
-        partId,
+        partId: result.partId,
         blockerIds: [...result.blockerIds],
+        basis,
+        axisIndex: result.axisIndex,
         comboBefore: result.comboBefore,
         comboAfter: 1,
         penaltyMs: 3000,
@@ -105,12 +110,13 @@ function partClicked(state: GameState, partId: string, at: number): GameState {
       },
     ]);
   }
-
   const drafts: GameEventDraft[] = [
     {
       kind: "part_removed",
-      partId,
+      partId: result.partId,
       step: result.step,
+      basis,
+      axisIndex: result.axisIndex,
       points: result.points,
       fastenerBonus: result.fastenerBonus,
       awarded: result.awarded,
@@ -131,6 +137,97 @@ function partClicked(state: GameState, partId: string, at: number): GameState {
     });
   }
   return withEvents(settled.state, at, drafts);
+}
+
+function partClicked(state: GameState, partId: string, at: number): GameState {
+  const engine = state.engine;
+  if (engine === null || currentLoaded(state) === null) return state;
+  // While an explicit attempt is being checked the live parts must not change under it.
+  if (state.pendingAttempt !== null) {
+    return withEvents(state, at, [{ kind: "click_rejected", partId, reason: "attempt_pending" }]);
+  }
+  const { state: nextEngine, result } = attemptUnbolt(engine, partId);
+  if (result.kind === "rejected") {
+    return withEvents(state, at, [{ kind: "click_rejected", partId, reason: result.reason }]);
+  }
+  return applyUnbolt(state, nextEngine, result, "blocking_graph", at);
+}
+
+/**
+ * A click with an attempt axis chosen. The axis is used as given. A helical unscrew is decided at
+ * once from the blocking graph, as in the normal game. A straight move waits for its check: the
+ * part stays where it is and nothing scores until `EXPLICIT_ATTEMPT_CHECKED` arrives.
+ */
+function explicitAttempt(state: GameState, partId: string, axis: ExplicitAxis, attemptId: number, at: number): GameState {
+  const engine = state.engine;
+  if (engine === null || currentLoaded(state) === null) return state;
+  if (state.pendingAttempt !== null) {
+    return withEvents(state, at, [{ kind: "click_rejected", partId, reason: "attempt_pending" }]);
+  }
+  const plan = planExplicitAttempt(engine, partId, axis);
+  if (plan.kind === "rejected") {
+    return withEvents(state, at, [{ kind: "click_rejected", partId, reason: plan.reason }]);
+  }
+  if (plan.kind === "helical") {
+    const { state: nextEngine, result } = resolveExplicitHelical(engine, plan);
+    if (result.kind === "rejected") {
+      return withEvents(state, at, [{ kind: "click_rejected", partId, reason: result.reason }]);
+    }
+    return applyUnbolt(state, nextEngine, result, "blocking_graph", at);
+  }
+  return withEvents({ ...state, pendingAttempt: { attemptId, plan } }, at, [
+    {
+      kind: "attempt_checking",
+      partId,
+      axisIndex: plan.axisIndex,
+      travel: plan.travel,
+      staticPartIds: [...plan.staticPartIds],
+    },
+  ]);
+}
+
+const UNRESOLVED_DETAIL: Readonly<Record<UnresolvedReason, string>> = {
+  unverified: "The check could not decide this move.",
+  stale: "The answer was for a different move.",
+  not_extracted: "The move would not take the part clear of the assembly.",
+  error: "The check did not finish.",
+  cancelled: "The axis changed before the check finished.",
+};
+
+/**
+ * A new attempt axis. A different axis (or Auto) cancels the pending attempt at once: its later
+ * reply no longer matches `pendingAttempt` and is ignored, so it can never remove or score a part.
+ */
+function attemptAxisSet(state: GameState, axis: ExplicitAxis | null, at: number): GameState {
+  if (axis === state.attemptAxis) return state;
+  const pending = state.pendingAttempt;
+  const next: GameState = { ...state, attemptAxis: axis, pendingAttempt: null };
+  if (pending === null) return next;
+  return withEvents(next, at, [
+    {
+      kind: "attempt_unresolved",
+      partId: pending.plan.partId,
+      axisIndex: pending.plan.axisIndex,
+      reason: "cancelled",
+      detail: UNRESOLVED_DETAIL.cancelled,
+    },
+  ]);
+}
+
+function explicitChecked(state: GameState, attemptId: number, outcome: AttemptCheckResult, at: number): GameState {
+  const pending = state.pendingAttempt;
+  // A late answer: the attempt was replaced, the level was replayed or another level loaded.
+  if (pending === null || pending.attemptId !== attemptId) return state;
+  const cleared: GameState = { ...state, pendingAttempt: null };
+  const { plan } = pending;
+  const unresolved = (reason: UnresolvedReason, detail: string): GameState =>
+    withEvents(cleared, at, [{ kind: "attempt_unresolved", partId: plan.partId, axisIndex: plan.axisIndex, reason, detail }]);
+  const engine = state.engine;
+  if (engine === null) return unresolved("stale", UNRESOLVED_DETAIL.stale);
+  if (outcome.kind === "error") return unresolved("error", `${UNRESOLVED_DETAIL.error} ${outcome.message}`);
+  const resolved = resolveExplicitStraight(engine, plan, outcome.check);
+  if (resolved.kind === "unresolved") return unresolved(resolved.reason, UNRESOLVED_DETAIL[resolved.reason]);
+  return applyUnbolt(cleared, resolved.state, resolved.result, "checked_straight", at);
 }
 
 function trapFlagged(state: GameState, at: number): GameState {
@@ -234,6 +331,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "PART_CLICKED":
       return partClicked(state, action.partId, action.at);
+    case "ATTEMPT_AXIS_SET":
+      return attemptAxisSet(state, action.axis, action.at);
+    case "EXPLICIT_ATTEMPT":
+      return explicitAttempt(state, action.partId, action.axis, action.attemptId, action.at);
+    case "EXPLICIT_ATTEMPT_CHECKED":
+      return explicitChecked(state, action.attemptId, action.result, action.at);
 
     case "TRAP_FLAGGED":
       return trapFlagged(state, action.at);

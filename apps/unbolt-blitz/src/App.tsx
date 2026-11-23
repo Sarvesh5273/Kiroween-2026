@@ -66,7 +66,7 @@ function Game({ controller }: { controller: AppController }) {
 
   return (
     <>
-      <ArenaView store={store} hints={hintSession} onHover={onHover} />
+      <ArenaView store={store} hints={hintSession} onHover={onHover} onPartClick={controller.clickPart} />
       <Hud store={store} controller={controller} hover={hover} />
       {state.screen.kind === "recovery" ? (
         <RecoveryScreen

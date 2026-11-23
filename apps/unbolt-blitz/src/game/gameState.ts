@@ -14,7 +14,7 @@ import type {
   SolveResult,
 } from "../protocol";
 import type { RecoveryCause } from "../recovery/recoveryCause";
-import type { EngineLevel, EngineState } from "./blitzEngine";
+import type { EngineLevel, EngineState, ExplicitAxis, ExplicitPlan, StraightCheck } from "./blitzEngine";
 import type { GameEvent } from "./events";
 
 export type LevelRef =
@@ -58,7 +58,19 @@ export interface GameState {
   nextEventSeq: number;
   /** Ordered, append-only within a level. */
   events: readonly GameEvent[];
+  /**
+   * The axis the player chose for explicit attempts, or null for the normal game, where a click
+   * lets the engine pick the exit. A player preference, so it survives level changes.
+   */
+  attemptAxis: ExplicitAxis | null;
+  /** The straight explicit attempt waiting for its check. At most one at a time. */
+  pendingAttempt: { attemptId: number; plan: Extract<ExplicitPlan, { kind: "straight" }> } | null;
 }
+
+/** What came back for a straight explicit attempt. */
+export type AttemptCheckResult =
+  | { kind: "verdict"; check: StraightCheck }
+  | { kind: "error"; message: string };
 
 export type GameAction =
   | { type: "LEVEL_REQUESTED"; ref: LevelRef; label: string; requestId: number; at: number }
@@ -68,6 +80,12 @@ export type GameAction =
   /** Starts the stopwatch (Req 13.10). Ignored unless `epoch` is the current one. */
   | { type: "ARENA_READY"; epoch: number; at: number }
   | { type: "PART_CLICKED"; partId: string; at: number }
+  /** Choosing a different axis, or Auto, cancels a pending attempt. The same axis changes nothing. */
+  | { type: "ATTEMPT_AXIS_SET"; axis: ExplicitAxis | null; at: number }
+  /** A click while an attempt axis is chosen: try exactly that axis. */
+  | { type: "EXPLICIT_ATTEMPT"; partId: string; axis: ExplicitAxis; attemptId: number; at: number }
+  /** The worker's answer for a straight explicit attempt. Ignored unless that attempt is pending. */
+  | { type: "EXPLICIT_ATTEMPT_CHECKED"; attemptId: number; result: AttemptCheckResult; at: number }
   | { type: "TRAP_FLAGGED"; at: number }
   /** Same level data, fresh engine, epoch + 1. */
   | { type: "REPLAY"; at: number }
@@ -83,6 +101,8 @@ export const initialGameState: GameState = {
   finalElapsedMs: null,
   nextEventSeq: 0,
   events: [],
+  attemptAxis: null,
+  pendingAttempt: null,
 };
 
 /**
