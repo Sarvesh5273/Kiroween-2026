@@ -327,11 +327,16 @@ export class Arena {
    * Under reduced motion the ghost holds a steady opacity.
    * Throws `RangeError` when the part is not live or `dir` has no length.
    */
-  showGhostHint(partId: string, dir: Vec3, distance: number): void {
+  showGhostHint(partId: string, dir: Vec3, distance: number, firstMove = false): void {
     this.assertNotDisposed();
     const mesh = this.liveMesh(partId);
     const data = this.partData.get(partId) as PartRenderData;
-    this.ghost.show(mesh.geometry, data.obb.center, dir, distance, this.now());
+    // The opening Lockbox screw head is exposed at the top of its bounds. Its OBB
+    // center is inside the lid and would direct a player to click the lid itself.
+    const origin: Vec3 = firstMove
+      ? [data.obb.center[0], data.aabb.max[1], data.obb.center[2]]
+      : data.obb.center;
+    this.ghost.show(mesh.geometry, origin, dir, distance, this.now(), firstMove);
   }
 
   // -------------------------------------------------------------------------

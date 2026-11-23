@@ -120,7 +120,7 @@ export function Hud({ store, controller, hover }: HudProps) {
         </div>
         <div className="bz-hud__notices">
           <BlockerCallout store={store} />
-          <HintBanner hints={hintSession} />
+          {inPlay ? <HintBanner hints={hintSession} /> : null}
         </div>
         <div className="bz-hud__bottom-right">
           <HintButton hints={hintSession} inPlay={inPlay} onAsk={askHint} />

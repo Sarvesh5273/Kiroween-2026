@@ -80,7 +80,7 @@ export function ArenaView({ store, hints, onHover, onPartClick }: ArenaViewProps
 
     const stopHints =
       hints?.onShow((request) => {
-        arena.showGhostHint(request.partId, request.dir, request.distance);
+        arena.showGhostHint(request.partId, request.dir, request.distance, request.mode === "firstMove");
       }) ?? null;
     return () => {
       stopHints?.();

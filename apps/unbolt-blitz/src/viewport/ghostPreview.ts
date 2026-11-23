@@ -61,6 +61,7 @@ export class GhostPreview {
   private arrowBase = new Vector3();
   private arrowDir = new Vector3();
   private startedAt = 0;
+  private pointingAtPart = false;
   private reduced: boolean;
 
   constructor(
@@ -84,8 +85,9 @@ export class GhostPreview {
    * `source` is cloned, so releasing the part's own geometry later never affects the ghost.
    * Replaces a ghost that is already shown.
    */
-  show(source: BufferGeometry, origin: Vec3, dir: Vec3, distance: number, nowMs: number): void {
+  show(source: BufferGeometry, origin: Vec3, dir: Vec3, distance: number, nowMs: number, firstMove = false): void {
     this.clear();
+    this.pointingAtPart = firstMove;
     const direction = new Vector3(dir[0], dir[1], dir[2]);
     if (!(direction.lengthSq() > 0)) throw new RangeError("Ghost hint needs a non-zero direction.");
     direction.normalize();
@@ -106,7 +108,7 @@ export class GhostPreview {
       }),
     );
     const ghost = new Mesh(geometry, fill);
-    ghost.position.copy(direction).multiplyScalar(travel);
+    if (!firstMove) ghost.position.copy(direction).multiplyScalar(travel);
     ghost.renderOrder = 20;
     group.add(ghost);
 
@@ -119,7 +121,14 @@ export class GhostPreview {
     outline.renderOrder = 21;
     group.add(outline);
 
-    group.add(this.buildArrow(origin, direction, travel));
+    if (firstMove) {
+      // Point the arrowhead at the clickable surface, not at a ghost above the model.
+      const length = 0.15;
+      const tail = new Vector3(...origin).addScaledVector(direction, length + 0.006);
+      group.add(this.buildArrow(tail.toArray(), direction.clone().negate(), length, false));
+    } else {
+      group.add(this.buildArrow(origin, direction, travel + ARROW_OVERSHOOT, true));
+    }
 
     this.scene.add(group);
     this.group = group;
@@ -127,8 +136,7 @@ export class GhostPreview {
     this.startedAt = nowMs;
   }
 
-  private buildArrow(origin: Vec3, direction: Vector3, travel: number): Group {
-    const length = travel + ARROW_OVERSHOOT;
+  private buildArrow(origin: Vec3, direction: Vector3, length: number, markTail: boolean): Group {
     const headLength = 0.07;
     const shaftLength = Math.max(0.02, length - headLength);
     const material = this.tracker.track(
@@ -136,16 +144,15 @@ export class GhostPreview {
     );
     const shaftGeometry = this.tracker.track(new CylinderGeometry(0.006, 0.006, shaftLength, 10));
     const headGeometry = this.tracker.track(new ConeGeometry(0.022, headLength, 14));
-    const markerGeometry = this.tracker.track(new SphereGeometry(0.02, 12, 8));
 
     const shaft = new Mesh(shaftGeometry, material);
     shaft.position.y = shaftLength / 2;
     const head = new Mesh(headGeometry, material);
     head.position.y = shaftLength + headLength / 2;
-    const marker = new Mesh(markerGeometry, material);
 
     const arrow = new Group();
-    arrow.add(shaft, head, marker);
+    arrow.add(shaft, head);
+    if (markTail) arrow.add(new Mesh(this.tracker.track(new SphereGeometry(0.02, 12, 8)), material));
     for (const part of arrow.children) part.renderOrder = 22;
     arrow.quaternion.copy(new Quaternion().setFromUnitVectors(Y_AXIS, direction));
     arrow.position.set(origin[0], origin[1], origin[2]);
@@ -158,6 +165,7 @@ export class GhostPreview {
   /** Pulses the ghost and expires it after `GHOST_HINT_DURATION_MS`. */
   update(nowMs: number): void {
     if (this.group === null) return;
+    if (this.pointingAtPart) return;
     const elapsed = nowMs - this.startedAt;
     if (elapsed >= GHOST_HINT_DURATION_MS) {
       this.clear();

@@ -20,6 +20,7 @@ import type { EngineState } from "../game/blitzEngine";
 import type { GameEvent } from "../game/events";
 import { ESCAPE_TIE_TOLERANCE } from "../game/scoring";
 import type { GameModule } from "./types";
+import { defaultStorage, type StorageAdapter } from "./storage";
 
 export type HintTarget =
   | { kind: "part"; partId: string; dir: Vec3; distance: number }
@@ -130,12 +131,14 @@ export interface HintBanner {
 export interface HintSnapshot {
   hintsUsed: number;
   banner: HintBanner | null;
+  firstMove: HintShowRequest | null;
 }
 
 export interface HintShowRequest {
   partId: string;
   dir: Vec3;
   distance: number;
+  mode?: "firstMove";
 }
 
 export interface HintSession extends GameModule {
@@ -156,9 +159,10 @@ export interface HintSession extends GameModule {
   reset(): void;
 }
 
-const EMPTY: HintSnapshot = { hintsUsed: 0, banner: null };
+const EMPTY: HintSnapshot = { hintsUsed: 0, banner: null, firstMove: null };
+const FIRST_MOVE_SEEN = "unbolt-blitz:first-lockbox-cue:v1";
 
-export function createHintSession(): HintSession {
+export function createHintSession(storage: StorageAdapter = defaultStorage()): HintSession {
   let snapshot: HintSnapshot = EMPTY;
   let nextBannerId = 1;
   const listeners = new Set<() => void>();
@@ -169,15 +173,29 @@ export function createHintSession(): HintSession {
   };
   return {
     id: "ghost-hint",
-    onEvent(event: GameEvent) {
+    onEvent(event: GameEvent, ctx) {
       switch (event.kind) {
         case "level_loaded":
           if (snapshot !== EMPTY) publish(EMPTY);
           return;
+        case "level_started": {
+          // Only offer the cue once, after the lockbox meshes can actually be seen.
+          const { screen, engine } = ctx.getState();
+          if (screen.kind !== "level" || screen.loaded.ref.kind !== "bundled" ||
+              screen.loaded.ref.levelId !== "lockbox" || engine === null || storage.getItem(FIRST_MOVE_SEEN)) return;
+          storage.setItem(FIRST_MOVE_SEEN, "1");
+          if (engine.removed.size !== 0) return;
+          const target = pickHintTarget(engine);
+          if (target?.kind !== "part") return;
+          const firstMove: HintShowRequest = { ...target, mode: "firstMove" };
+          publish({ ...snapshot, firstMove });
+          for (const listener of [...showListeners]) listener(firstMove);
+          return;
+        }
         case "part_removed":
         case "trap_flagged":
         case "level_completed":
-          if (snapshot.banner !== null) publish({ hintsUsed: snapshot.hintsUsed, banner: null });
+          if (snapshot.banner !== null || snapshot.firstMove !== null) publish({ ...EMPTY, hintsUsed: snapshot.hintsUsed });
           return;
         default:
           return;
@@ -207,8 +225,9 @@ export function createHintSession(): HintSession {
           : "";
       const banner: HintBanner = { id: nextBannerId, kind: target.kind, text: hintBannerText(target, name) };
       nextBannerId += 1;
-      publish({ hintsUsed: snapshot.hintsUsed + 1, banner });
-      if (target.kind === "part") {
+      publish({ ...snapshot, hintsUsed: snapshot.hintsUsed + 1, banner });
+      // The first-move pointer already identifies this screw; keep it until a removal.
+      if (target.kind === "part" && snapshot.firstMove === null) {
         const request: HintShowRequest = { partId: target.partId, dir: target.dir, distance: target.distance };
         for (const listener of [...showListeners]) listener(request);
       }

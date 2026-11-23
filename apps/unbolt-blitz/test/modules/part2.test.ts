@@ -12,6 +12,8 @@ import {
 import type { EngineState } from "../../src/game/blitzEngine";
 import type { CompletionSummary, GameEvent } from "../../src/game/events";
 import type { GameState } from "../../src/game/gameState";
+import { loadedLevelFromSolve } from "../../src/game/gameState";
+import { createGameStore } from "../../src/game/store";
 import { toEngineLevelInput } from "../../src/game/levelData";
 import { createEngineDeps } from "../../src/engineDeps";
 import { resolveShortcut } from "../../src/hud/shortcuts";
@@ -146,6 +148,36 @@ describe("hint session", () => {
   const engine = engineOf(solvedDefaultLockboxViaRunner());
   const loaded: GameEvent = { kind: "level_loaded", seq: 0, at: 0, epoch: 1, label: "x", totalParts: 3 };
   const ctx = { getState: () => ({}) as GameState, engine: () => engine } as ModuleContext;
+
+  it("teaches the first lockbox removal without spending a hint or repeating on the next visit", () => {
+    const storage = createMemoryStorage();
+    const store = createGameStore();
+    const session = createHintSession(storage);
+    const liveContext = { getState: store.getState, engine: () => store.getState().engine };
+    store.bus.subscribe((event) => session.onEvent(event, liveContext));
+    const solved = requireSolveResult(solvedDefaultLockboxViaRunner());
+    const ref = { kind: "bundled", levelId: "lockbox" } as const;
+    const level = loadedLevelFromSolve(solved, ref, "Lockbox", 1);
+    store.dispatch({ type: "LEVEL_REQUESTED", ref, label: "Lockbox", requestId: 1, at: 0 });
+    store.dispatch({ type: "LEVEL_LOADED", requestId: 1, loaded: level, engineLevel: engine.level, at: 50 });
+    store.dispatch({ type: "ARENA_READY", epoch: 1, at: 100 });
+    const cue = session.getSnapshot().firstMove;
+    if (!cue) throw new Error("Missing first-move cue");
+    expect(level.displayNames.get(cue.partId)).toMatch(/lid fastener/i);
+    expect(computeStars(summary(), session.getHintsUsed())).toBe(3);
+    store.dispatch({ type: "PART_CLICKED", partId: cue.partId, at: 150 });
+    expect(store.getState().engine?.removed.has(cue.partId)).toBe(true);
+    expect(session.getSnapshot().firstMove).toBeNull();
+    expect(session.getHintsUsed()).toBe(0);
+    store.dispatch({ type: "REPLAY", at: 200 });
+    store.dispatch({ type: "ARENA_READY", epoch: 2, at: 250 });
+    expect(session.getSnapshot().firstMove).toBeNull();
+    const returning = createHintSession(storage);
+    returning.onEvent({ kind: "level_started", epoch: 2, seq: 1, at: 250 }, liveContext);
+    expect(returning.getSnapshot().firstMove).toBeNull();
+    returning.request(liveContext.engine());
+    expect(computeStars(summary(), returning.getHintsUsed())).toBe(2);
+  });
 
   it("counts hints, tells the Arena, and resets on level_loaded (new level and replay)", () => {
     const session = createHintSession();
