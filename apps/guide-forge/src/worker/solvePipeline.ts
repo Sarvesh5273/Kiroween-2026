@@ -6,7 +6,8 @@
  * defaults use `performance.now`, Core `checkClashes` and a sink that drops events.
  *
  * Stage order: stage0, stage1, stage2, stage3, then for a solved plan stage4, oracle and naive,
- * and for a deadlocked plan naive only. Each executed stage posts `started` and `completed`.
+ * and for a deadlocked plan naive only. The `oracle` stage is the legacy ray clash count, kept as
+ * a diagnostic; it is not a verdict, and no full-guide verification runs during a solve. Each executed stage posts `started` and `completed`.
  * The Core plan is returned as Core produced it. This module never edits `steps`, `witness`,
  * `normalization` or `sampling`.
  */
@@ -22,6 +23,7 @@ import {
   type CompileError,
   type DisassemblyPlan,
   type NaiveBaselineResult,
+  type Stage1Result,
   type TrajectoryStep,
 } from "@unboltkit/core";
 import type {
@@ -43,6 +45,11 @@ export interface PipelineDeps {
   checkClashes: typeof coreCheckClashes;
   /** Receives every Stage_Progress_Event, in the order the events occur. */
   onProgress: (event: StageProgressEvent) => void;
+  /**
+   * Receives the Stage 1 output once it is ready and valid, so the worker can keep the Parts for
+   * later "Check this move" requests. Not called for a Stage 1 error.
+   */
+  onStage1Ready: (stage1: Stage1Result) => void;
 }
 
 /** Real dependencies. `onProgress` drops events, so `runSolve(request)` works without wiring. */
@@ -50,6 +57,7 @@ export const DEFAULT_PIPELINE_DEPS: PipelineDeps = {
   now: () => performance.now(),
   checkClashes: coreCheckClashes,
   onProgress: () => undefined,
+  onStage1Ready: () => undefined,
 };
 
 /** Name of {@link CompileFailureError}. */
@@ -92,6 +100,7 @@ export function runSolve(request: SolveRequestMessage, deps: Partial<PipelineDep
   const now = deps.now ?? DEFAULT_PIPELINE_DEPS.now;
   const check = deps.checkClashes ?? DEFAULT_PIPELINE_DEPS.checkClashes;
   const onProgress = deps.onProgress ?? DEFAULT_PIPELINE_DEPS.onProgress;
+  const onStage1Ready = deps.onStage1Ready ?? DEFAULT_PIPELINE_DEPS.onStage1Ready;
 
   const solveStart = now();
   const stageMs: Partial<Record<StageName, number>> = {};
@@ -131,6 +140,7 @@ export function runSolve(request: SolveRequestMessage, deps: Partial<PipelineDep
     // The error is the plan, as `solveDisassembly` returns it for the same input.
     return finish(stage1, null, null, null, []);
   }
+  onStage1Ready(stage1);
 
   const graph = timed("stage2", () => stage2BuildDbg(stage1, stage1.config));
   const plan = timed("stage3", () => stage3Peel(stage1, graph, stage1.config));

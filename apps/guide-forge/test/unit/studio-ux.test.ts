@@ -175,19 +175,19 @@ describe("toast feedback", () => {
 });
 
 describe("comparison card model", () => {
-  it("reads both claims from the oracle and the naive report of a solved plan", () => {
+  it("reads the legacy ray count and the naive report of a solved plan, and never says Verified", () => {
     const comparison = selectComparison(keyboard.result);
     expect(comparison).not.toBeNull();
     const { oracle, naive } = keyboard.result;
     if (comparison === null || oracle === null || naive === null) throw new Error("expected both reports");
 
     expect(comparison.dbg.clashes).toBe(oracle.totalClashes);
-    expect(comparison.dbg.verified).toBe(oracle.totalClashes === 0);
+    expect(comparison.dbg.status).toBe("unverified");
     expect(comparison.dbg.text).toBe(
-      oracle.totalClashes === 0
-        ? "0 clashes (Verified)"
-        : `${oracle.totalClashes} ${oracle.totalClashes === 1 ? "clash" : "clashes"} (Not Verified)`,
+      `${oracle.totalClashes} legacy ray ${oracle.totalClashes === 1 ? "hit" : "hits"} (full guide not verified)`,
     );
+    // The only "verified" in the text is the negated one.
+    expect(comparison.dbg.text.replace(/not verified/gi, "")).not.toMatch(/verified/i);
 
     const obstructed = naive.perPart.filter((entry) => entry.clashCount > 0).length;
     expect(comparison.naive.clashes).toBe(naive.totalClashes);
@@ -196,8 +196,7 @@ describe("comparison card model", () => {
     expect(comparison.naive.text).toBe(
       `${naive.totalClashes} ${naive.totalClashes === 1 ? "clash" : "clashes"} (${obstructed}/${naive.perPart.length} parts obstructed)`,
     );
-    // The value proposition: the planned removal is clash-free and the naive explode is not.
-    expect(comparison.dbg.clashes).toBe(0);
+    // The naive explode collides; the plan's legacy ray count is a diagnostic only.
     expect(comparison.naive.clashes).toBeGreaterThan(0);
   });
 
@@ -209,22 +208,27 @@ describe("comparison card model", () => {
     expect(selectClashBadge(keyboard.result, "naive").text).toBe(
       `${comparison.naive.clashes} Clashes • ${comparison.naive.obstructed} Obstructed Parts`,
     );
-    expect(selectClashBadge(keyboard.result, "dbg").text).toBe(
-      `${comparison.dbg.clashes} Clashes • ${comparison.dbg.verified ? "Verified" : "Not Verified"}`,
-    );
+    const hits = comparison.dbg.clashes ?? -1;
+    expect(selectClashBadge(keyboard.result, "dbg")).toEqual({
+      icon: "unverified",
+      text: `Full guide not verified • ${hits} legacy ray ${hits === 1 ? "hit" : "hits"}`,
+    });
   });
 
-  it("never claims Verified without an oracle report, or with clashes in it", () => {
-    const noOracle = selectComparison({ ...keyboard.result, oracle: null });
-    expect(noOracle?.dbg.verified).toBe(false);
-    expect(noOracle?.dbg.clashes).toBeNull();
-    expect(noOracle?.dbg.text).toBe("Not Verified");
-
+  it("says the full guide is not verified with zero ray hits, with hits, and without a ray report", () => {
     const oracle = keyboard.result.oracle;
     if (oracle === null) throw new Error("expected an oracle report");
+    const zero = selectComparison({ ...keyboard.result, oracle: { ...oracle, totalClashes: 0 } });
+    expect(zero?.dbg.text).toBe("0 legacy ray hits (full guide not verified)");
+    expect(selectClashBadge({ ...keyboard.result, oracle: { ...oracle, totalClashes: 0 } }, "dbg").icon).toBe("unverified");
+
     const dirty = selectComparison({ ...keyboard.result, oracle: { ...oracle, totalClashes: 3 } });
-    expect(dirty?.dbg.verified).toBe(false);
-    expect(dirty?.dbg.text).toBe("3 clashes (Not Verified)");
+    expect(dirty?.dbg.text).toBe("3 legacy ray hits (full guide not verified)");
+
+    const noOracle = selectComparison({ ...keyboard.result, oracle: null });
+    expect(noOracle?.dbg.clashes).toBeNull();
+    expect(noOracle?.dbg.text).toBe("Full guide not verified");
+    expect(selectClashBadge({ ...keyboard.result, oracle: null }, "dbg").text).toBe("Full guide not verified");
   });
 
   it("is absent for a deadlocked plan, an empty state and a result without a naive report", () => {

@@ -6,6 +6,7 @@
  */
 import type {
   DisassemblyPlan,
+  MoveVerification,
   NaiveBaselineResult,
   TrajectoryStep,
   Vec3,
@@ -60,7 +61,10 @@ export type SolveSource =
   | { kind: "scene"; fileName: string; scene: ScenePayload };
 
 /** Label kept in app state. The payload is not kept. */
-export type SolveLabel = { kind: "kit"; kitName: string } | { kind: "file"; fileName: string };
+export type SolveLabel =
+  | { kind: "kit"; kitName: string }
+  | { kind: "file"; fileName: string }
+  | { kind: "example"; name: "service-ring" };
 
 export interface SolveRequestMessage {
   type: "solve";
@@ -82,6 +86,11 @@ export interface PartRenderData {
   aabb: { min: Vec3; max: Vec3 };
 }
 
+/**
+ * Legacy ray clash counts, kept as a diagnostic. A count of zero is not evidence that a move is
+ * clear: rays from vertices and centroids can miss a collision (crossed bars), and a hit beyond
+ * the end of a move is not a collision of that move.
+ */
 export interface OracleReport {
   perStep: { partId: string; clashCount: number }[];
   totalClashes: number;
@@ -106,7 +115,37 @@ export interface SolveFailure {
   message: string;
 }
 
+/**
+ * One straight move to check, as the user chose it. Directions and distances are in model
+ * coordinates: Stage 1 normalization only scales and translates, so a model axis is also a
+ * normalized axis, and the worker multiplies `distance` by the normalization scale.
+ */
+export interface MoveCheckRequest {
+  partId: string;
+  /** Unit direction in model coordinates. */
+  dir: Vec3;
+  /** Travel in model units. Finite and greater than 0. */
+  distance: number;
+  /** Every Part present during the move other than `partId`, ascending by Part_ID. */
+  staticPartIds: string[];
+}
+export interface CheckMoveMessage {
+  type: "check";
+  /** The solve whose Parts the move is about. */
+  requestId: number;
+  checkId: number;
+  move: MoveCheckRequest;
+}
+export type WorkerInMessage = SolveRequestMessage | CheckMoveMessage;
+export interface MoveCheckResult {
+  /** The production `verifyLinearMove` result, in normalized units. */
+  verification: MoveVerification;
+  /** Time spent in the worker on this check. */
+  elapsedMs: number;
+}
 export type WorkerOutMessage =
   | { type: "progress"; requestId: number; event: StageProgressEvent }
   | { type: "result"; requestId: number; result: SolveResult }
-  | { type: "failure"; requestId: number; failure: SolveFailure };
+  | { type: "failure"; requestId: number; failure: SolveFailure }
+  | { type: "checkResult"; requestId: number; checkId: number; result: MoveCheckResult }
+  | { type: "checkFailure"; requestId: number; checkId: number; failure: SolveFailure };

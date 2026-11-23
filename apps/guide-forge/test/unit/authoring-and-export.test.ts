@@ -335,7 +335,8 @@ describe("buildOfflineManualHtml", () => {
         },
       ],
       lockedParts: [hostile],
-      proofBadge: { text: hostile, tone: "warn" },
+      guideVerification: { text: hostile, tone: "warn" },
+      legacyRayHits: 0,
       naiveBadge: { text: hostile },
       snapshots: {
         assembled: 'data:image/png;base64,AAAA" onerror="alert(1)',
@@ -368,10 +369,18 @@ describe("buildOfflineManualHtml", () => {
     expect(html).toContain("default-src &#39;none&#39;");
   });
 
-  it("shows the oracle proof badge next to the naive clash comparison and embeds both snapshots", () => {
+  it("says Full guide not verified, keeps the legacy ray count as a diagnostic, and embeds both snapshots", () => {
     const html = exportHtml(annotatedState().state);
-    expect(html).toContain("Independent Oracle Proof");
-    expect(html).toContain("0 Clashes • Verified");
+    // No full-guide check has run, so the manual must not claim one.
+    expect(html).toContain("Full guide not verified");
+    expect(html).not.toContain("Independent Oracle Proof");
+    expect(html).not.toMatch(/zero-clash|mathematically verified/i);
+    expect(html.replace(/not verified/gi, "")).not.toMatch(/\bverified\b/i);
+    const oracle = keyboard.oracle;
+    if (oracle === null) throw new Error("expected a legacy ray report");
+    expect(html).toContain(
+      `Legacy ray check (diagnostic only, not proof): ${oracle.totalClashes} legacy ray ${oracle.totalClashes === 1 ? "hit" : "hits"}`,
+    );
     const naive = keyboard.naive;
     expect(naive).not.toBeNull();
     if (naive === null) return;
@@ -457,6 +466,7 @@ describe("buildOfflineManualHtml", () => {
     const html = buildOfflineManualHtml(input);
     expect(html).toContain("Interlocked • No Valid Sequence");
     expect(html).toContain("Interlocked: no valid removal sequence");
+    expect(html).toContain("Full guide not verified");
     expect(html).toContain("Snapshot not available");
     for (const name of input.lockedParts) expect(html).toContain(escapeHtml(name));
   });

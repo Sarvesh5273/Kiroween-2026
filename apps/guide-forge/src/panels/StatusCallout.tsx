@@ -1,22 +1,22 @@
 /**
- * Status callout (Requirement 15.9): one of Verified, Not Verified, Interlocked or Obstructed, each
- * with an icon and a text label, so the status reads without colour or sound.
+ * Status callout (Requirement 15.9): one of Full guide not verified, Interlocked or Obstructed,
+ * each with an icon and a text label, so the status reads without colour or sound.
  *
- * The state comes from the oracle and naive reports in the Solve_Result, never from `plan.status`
- * alone (Requirement 9.4). Only `plan.status === "deadlocked"` is read directly, because a
- * deadlocked plan has no oracle report to consult.
+ * No state claims the guide is verified: the legacy ray count is a diagnostic, and a single
+ * checked move does not verify the guide. Obstructed comes from the naive report and Interlocked
+ * from `plan.status === "deadlocked"`.
  */
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { SolveResult } from "../protocol";
-import { selectDeadlockModel } from "../state/selectors";
+import { GUIDE_NOT_VERIFIED_TEXT, legacyRayHitsText, selectDeadlockModel } from "../state/selectors";
 import type { Mode } from "../state/types";
 import { ICONS, type IconName } from "../ui/icons";
 
-export type CalloutKind = "verified" | "not-verified" | "interlocked" | "obstructed";
+export type CalloutKind = "unverified" | "interlocked" | "obstructed";
 
 export interface CalloutModel {
   kind: CalloutKind;
-  /** Visible label: Verified, Not Verified, Interlocked or Obstructed. */
+  /** Visible label: Full guide not verified, Interlocked or Obstructed. */
   label: string;
   /** Short explanation with the numbers behind the label. */
   detail: string;
@@ -54,49 +54,42 @@ export function selectCalloutModel(result: SolveResult | null, mode: Mode): Call
     };
   }
 
+  // A solved plan. No full-guide check has run, so the guide is not verified. The legacy ray
+  // count is shown as a diagnostic only: zero hits is not proof that a move is clear.
   const oracle = result.oracle;
-  if (oracle === null) {
-    return {
-      kind: "not-verified",
-      label: "Not Verified",
-      detail: "No independent clash check is available for this plan.",
-      tone: "bad",
-      icon: "warn",
-    };
-  }
-  if (oracle.totalClashes > 0) {
-    return {
-      kind: "not-verified",
-      label: "Not Verified",
-      detail: `The independent clash check found ${plural(oracle.totalClashes, "clash", "clashes")}.`,
-      tone: "bad",
-      icon: "warn",
-    };
-  }
+  const diagnostic =
+    oracle === null
+      ? "No legacy ray count is available."
+      : `Legacy ray check (diagnostic only): ${legacyRayHitsText(oracle.totalClashes)} across ${plural(oracle.perStep.length, "step", "steps")}.`;
   return {
-    kind: "verified",
-    label: "Verified",
-    detail: `0 clashes across ${plural(oracle.perStep.length, "step", "steps")} (independent clash check).`,
-    tone: "ok",
-    icon: "check",
+    kind: "unverified",
+    label: GUIDE_NOT_VERIFIED_TEXT,
+    detail: `${diagnostic} Use Check this move to test one move against the parts present.`,
+    tone: "warn",
+    icon: "warn",
   };
 }
-
 export interface StatusCalloutProps {
   result: SolveResult | null;
   mode: Mode;
+  children?: ReactNode;
 }
 
-export function StatusCallout({ result, mode }: StatusCalloutProps): ReactElement | null {
+export function StatusCallout({ result, mode, children }: StatusCalloutProps): ReactElement | null {
   const model = selectCalloutModel(result, mode);
   if (model === null) return null;
   const Icon = ICONS[model.icon];
   return (
-    <div className={`gf-callout gf-callout--${model.tone}`} data-status={model.kind}>
-      <Icon className="gf-icon gf-callout__icon" />
-      <p className="gf-callout__text">
-        <span>{model.label}</span> <span className="gf-callout__detail">{model.detail}</span>
-      </p>
-    </div>
+    <details className={`gf-guide-details gf-callout--${model.tone}`} data-status={model.kind}>
+      <summary>
+        <Icon className="gf-icon" />
+        <strong>{model.label}</strong>
+        <span className="gf-guide-details__action">Details</span>
+      </summary>
+      <div className="gf-guide-details__body">
+        <p>{model.detail}</p>
+        {children}
+      </div>
+    </details>
   );
 }

@@ -5,6 +5,7 @@
  * No React, no DOM, no three, and no audio of any kind.
  */
 import { KIT_TITLES } from "../kits";
+import { SERVICE_RING } from "../examples/serviceRing";
 import type { SolveLabel, SolveResult, StageName, StageProgressEvent } from "../protocol";
 import { selectClashBadge } from "./selectors";
 import type { DeadlockModel } from "./selectors";
@@ -16,7 +17,7 @@ const STAGE_LABELS: Readonly<Record<StageName, string>> = {
   stage2: "Stage 2 blocking graph",
   stage3: "Stage 3 peel",
   stage4: "Stage 4 compile",
-  oracle: "Oracle clash check",
+  oracle: "Legacy ray check (diagnostic)",
   naive: "Naive baseline",
 };
 
@@ -26,6 +27,7 @@ export const MODE_LABELS: Readonly<Record<Mode, string>> = {
 };
 
 function labelName(label: SolveLabel): string {
+  if (label.kind === "example") return SERVICE_RING.title;
   if (label.kind === "file") return label.fileName;
   const titles: Readonly<Record<string, string>> = KIT_TITLES;
   return titles[label.kitName] ?? label.kitName;

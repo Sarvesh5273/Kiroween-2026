@@ -4,6 +4,7 @@
  */
 import type { ChangeEvent, ReactElement } from "react";
 import { KIT_GROUPS, KIT_TITLES, type KitName } from "../kits";
+import { SERVICE_RING } from "../examples/serviceRing";
 import { useAppState, useSolver } from "../state/AppStateProvider";
 
 /** Value of the placeholder option shown while an uploaded file is the active source. */
@@ -39,7 +40,7 @@ export function KitSelector(): ReactElement {
       <select id="kit-selector" className="gf-select" value={value} onChange={onChange}>
         {activeKit === null ? (
           <option value={FILE_OPTION_VALUE} disabled>
-            {fileName !== null ? `Uploaded: ${fileName}` : "Choose a kit"}
+            {label?.kind === "example" ? SERVICE_RING.title : fileName !== null ? `Uploaded: ${fileName}` : "Choose a kit"}
           </option>
         ) : null}
         {KIT_GROUPS.map((group) => (

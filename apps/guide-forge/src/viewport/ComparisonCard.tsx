@@ -1,18 +1,18 @@
 /**
  * Comparison telemetry card, bottom-left of the 3D view.
  *
- * Puts the product claim next to its baseline for a solved plan:
- * `UnboltKit DBG: 0 clashes (Verified)` against
+ * Puts the DBG plan next to its baseline for a solved plan:
+ * `UnboltKit DBG: 0 legacy ray hits (full guide not verified)` against
  * `Naive Explode: X clashes (Y/N parts obstructed)`.
  *
- * Both numbers come from `selectComparison`, which reads the independent oracle report and the
- * naive baseline report in the Solve_Result. The card follows the active mode: the cell of the mode
+ * Both numbers come from `selectComparison`, which reads the legacy ray count (a diagnostic, not a
+ * verdict) and the naive baseline report in the Solve_Result. The card follows the active mode: the cell of the mode
  * on screen is emphasised. Status is carried by an icon and by the words, not by colour alone.
  */
 import type { ReactElement } from "react";
 import { useAppState } from "../state/AppStateProvider";
 import { selectComparison } from "../state/selectors";
-import { CheckIcon, WarnIcon } from "../ui/icons";
+import { WarnIcon } from "../ui/icons";
 
 export function ComparisonCard(): ReactElement | null {
   const state = useAppState();
@@ -28,10 +28,10 @@ export function ComparisonCard(): ReactElement | null {
         role="group"
         aria-label={`${dbg.label}: ${dbg.text}`}
         data-active={mode === "dbg"}
-        data-verified={dbg.verified}
+        data-status={dbg.status}
       >
         <span className="gf-compare__label">
-          {dbg.verified ? <CheckIcon size={14} /> : <WarnIcon size={14} />}
+          <WarnIcon size={14} />
           <span>{dbg.label}</span>
         </span>
         <span className="gf-compare__value">{dbg.text}</span>

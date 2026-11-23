@@ -16,7 +16,8 @@
 import { buildStepInstruction, selectStepModels } from "../authoring/stepText";
 import { KIT_TITLES } from "../kits";
 import type { SolveLabel } from "../protocol";
-import { selectClashBadge, selectDeadlockModel } from "../state/selectors";
+import { SERVICE_RING } from "../examples/serviceRing";
+import { BADGE_INTERLOCKED_TEXT, GUIDE_NOT_VERIFIED_TEXT, legacyRayHitsText, selectClashBadge, selectDeadlockModel } from "../state/selectors";
 import type { AppState } from "../state/types";
 
 export interface ManualStepInput {
@@ -48,8 +49,13 @@ export interface ManualInput {
   steps: ManualStepInput[];
   /** Display names of parts that no valid sequence reaches (deadlocked plans). */
   lockedParts: string[];
-  /** Independent Oracle result in the same words as the app's Clash_Badge. */
-  proofBadge: { text: string; tone: ProofTone };
+  /**
+   * What the manual may say about the whole guide. `Full guide not verified` unless a full check
+   * of every step has completed; Guide Forge has no such check yet, so the text is fixed.
+   */
+  guideVerification: { text: string; tone: ProofTone };
+  /** Legacy ray hits over the plan, a diagnostic only. `null` when the plan has no ray report. */
+  legacyRayHits: number | null;
   /** Naive Radial Explode comparison in the same words as the Clash_Badge, or `null` when absent. */
   naiveBadge: { text: string } | null;
   snapshots: { assembled: string | null; exploded: string | null };
@@ -105,6 +111,7 @@ export function manualFileName(title: string): string {
 
 function labelTitle(label: SolveLabel | null): { title: string; source: string } {
   if (label === null) return { title: "Assembly", source: "Assembly" };
+  if (label.kind === "example") return { title: SERVICE_RING.title, source: "Sample assembly" };
   if (label.kind === "file") return { title: label.fileName, source: "Uploaded file" };
   const titles: Readonly<Record<string, string>> = KIT_TITLES;
   return { title: titles[label.kitName] ?? label.kitName, source: "Sample kit" };
@@ -147,9 +154,6 @@ export function buildManualInput(
     }),
   );
 
-  const dbgBadge = selectClashBadge(result, "dbg");
-  const tone: ProofTone =
-    dbgBadge.icon === "check" ? "ok" : dbgBadge.icon === "interlock" ? "warn" : dbgBadge.icon === "warn" ? "bad" : "idle";
   const naive = result.naive === null ? null : { text: selectClashBadge(result, "naive").text };
 
   const deadlock = selectDeadlockModel(result);
@@ -166,7 +170,8 @@ export function buildManualInput(
     planStatus: plan.status,
     steps,
     lockedParts,
-    proofBadge: { text: dbgBadge.text, tone },
+    guideVerification: { text: GUIDE_NOT_VERIFIED_TEXT, tone: "warn" },
+    legacyRayHits: result.oracle === null ? null : result.oracle.totalClashes,
     naiveBadge: naive,
     snapshots,
   };
@@ -276,7 +281,12 @@ function bomTable(input: ManualInput): string {
 }
 
 function proofSection(input: ManualInput): string {
-  const proof = `<div class="badge badge-${input.proofBadge.tone}" role="status"><span class="badge-label">Independent Oracle Proof</span><span class="badge-text">${e(input.proofBadge.text)}</span></div>`;
+  const diagnostic =
+    input.legacyRayHits === null
+      ? ""
+      : `<span class="badge-note">Legacy ray check (diagnostic only, not proof): ${e(legacyRayHitsText(input.legacyRayHits))}</span>`;
+  const interlock = input.planStatus === "deadlocked" ? `<span class="badge-note">${e(BADGE_INTERLOCKED_TEXT)}</span>` : "";
+  const proof = `<div class="badge badge-${input.guideVerification.tone}" role="status"><span class="badge-label">Guide verification</span><span class="badge-text">${e(input.guideVerification.text)}</span>${interlock}${diagnostic}</div>`;
   const naive =
     input.naiveBadge === null
       ? ""
@@ -311,6 +321,7 @@ h3{margin:0;font-size:18px;color:var(--text)}
 .badge{display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:1px solid var(--accent);background:var(--panel)}
 .badge-label{font:600 11px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .badge-text{font:700 15px ui-monospace,Menlo,Consolas,monospace}
+.badge-note{font-size:12px;color:var(--muted)}
 .badge-ok{color:var(--ok);background:var(--ok-bg);border-color:var(--ok)}
 .badge-warn{color:var(--warn);background:var(--warn-bg);border-color:var(--warn)}
 .badge-bad{color:var(--bad);background:var(--bad-bg);border-color:var(--bad)}

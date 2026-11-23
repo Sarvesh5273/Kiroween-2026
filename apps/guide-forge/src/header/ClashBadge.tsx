@@ -13,6 +13,7 @@ const TONE_BY_ICON: Record<ClashBadgeModel["icon"], string> = {
   check: "gf-clash--ok",
   warn: "gf-clash--bad",
   interlock: "gf-clash--warn",
+  unverified: "gf-clash--warn",
   none: "gf-clash--idle",
 };
 
@@ -21,6 +22,7 @@ function StatusIcon({ icon }: { icon: ClashBadgeModel["icon"] }): ReactElement {
     case "check":
       return <CheckIcon className="gf-clash__icon" />;
     case "warn":
+    case "unverified":
       return <WarnIcon className="gf-clash__icon" />;
     case "interlock":
       return <InterlockIcon className="gf-clash__icon" />;

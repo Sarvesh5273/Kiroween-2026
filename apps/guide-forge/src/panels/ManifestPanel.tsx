@@ -9,8 +9,8 @@
  * - a Part name in the Interlock_Banner or the Locked Parts list dispatches `view/cameraRequested`
  *   with `kind: "focus"` (Requirement 14.6).
  *
- * Layout, top to bottom: header, status callout and metric strip, the scrolling step list (with the
- * Locked Parts list under it for a deadlocked plan), the pinned Step Notes card.
+ * Layout: the move form, a disclosure with guide diagnostics and BOM, the independently
+ * scrolling steps (including locked parts), and step notes.
  */
 import type { ReactElement } from "react";
 import {
@@ -23,6 +23,7 @@ import { StepAuthoringPanel } from "../authoring/StepAuthoringPanel";
 import { BomSummary } from "./BomSummary";
 import { InterlockBanner } from "./InterlockBanner";
 import { LockedParts } from "./LockedParts";
+import { MoveCheckPanel } from "./MoveCheckPanel";
 import { StatusCallout } from "./StatusCallout";
 import { StepRow } from "./StepRow";
 
@@ -61,9 +62,11 @@ export function ManifestPanel(): ReactElement {
     body = (
       <>
         <div className="gf-manifest__summary">
-          <StatusCallout result={result} mode={state.view.mode} />
-          {deadlocked ? <InterlockBanner result={result} onFocusPart={focusPart} /> : null}
-          <BomSummary bom={selectBom(result)} />
+          <MoveCheckPanel />
+          <StatusCallout result={result} mode={state.view.mode}>
+            <BomSummary bom={selectBom(result)} />
+            {deadlocked ? <InterlockBanner result={result} onFocusPart={focusPart} /> : null}
+          </StatusCallout>
         </div>
         <section className="gf-manifest__steps" aria-labelledby="gf-steps-heading">
           <h3 id="gf-steps-heading" className="gf-manifest__heading">

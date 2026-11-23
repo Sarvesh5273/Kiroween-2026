@@ -5,6 +5,7 @@
  * The `authoring` slice (Part 2) holds per-step annotations and the viewport visibility mode.
  */
 import type {
+  MoveCheckResult,
   SolveFailure,
   SolveLabel,
   SolveResult,
@@ -129,11 +130,31 @@ export interface AuthoringSlice {
   narrationEnabled: boolean;
 }
 
+/** One of the six model axes that "Check this move" offers. */
+export type AxisDirection = "+x" | "-x" | "+y" | "-y" | "+z" | "-z";
+/**
+ * "Check this move": the user's choice of Part, direction and travel, plus the check in flight
+ * and the latest answer. `pending` and `outcome` carry the key of the exact move they are about
+ * (solve, Part, direction, distance and present Parts). The root reducer drops either one as soon
+ * as the current key differs, so a verdict never outlives the move it describes.
+ */
+export interface MoveCheckSlice {
+  partId: string | null;
+  direction: AxisDirection | null;
+  /** The travel field as typed, in model units. */
+  distanceText: string;
+  pending: { checkId: number; key: string } | null;
+  outcome:
+    | { checkId: number; key: string; kind: "result"; result: MoveCheckResult }
+    | { checkId: number; key: string; kind: "failure"; failure: SolveFailure }
+    | null;
+}
 export interface AppState {
   solve: SolveSlice;
   view: ViewSlice;
   feedback: FeedbackSlice;
   authoring: AuthoringSlice;
+  moveCheck: MoveCheckSlice;
 }
 
 export type AppAction =
@@ -157,7 +178,13 @@ export type AppAction =
   | { type: "authoring/annotationPatched"; partId: string; patch: Partial<StepAnnotation> }
   | { type: "authoring/annotationCleared"; partId: string }
   | { type: "authoring/visibilitySet"; mode: VisibilityMode }
-  | { type: "authoring/narrationSet"; enabled: boolean };
+  | { type: "authoring/narrationSet"; enabled: boolean }
+  | { type: "moveCheck/partSelected"; partId: string | null }
+  | { type: "moveCheck/directionSelected"; direction: AxisDirection | null }
+  | { type: "moveCheck/distanceSet"; text: string }
+  | { type: "moveCheck/started"; requestId: number; checkId: number; key: string }
+  | { type: "moveCheck/completed"; requestId: number; checkId: number; result: MoveCheckResult }
+  | { type: "moveCheck/failed"; requestId: number; checkId: number; failure: SolveFailure };
 
 /** A slice reducer reads the previous complete state read-only and returns the same slice object when nothing changes. */
 export type SliceReducer<S> = (slice: S, action: AppAction, previous: AppState) => S;

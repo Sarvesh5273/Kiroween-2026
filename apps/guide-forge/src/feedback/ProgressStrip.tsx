@@ -27,7 +27,7 @@ const STAGE_TITLES: Readonly<Record<StageName, string>> = {
   stage2: "Swept-ray DBG",
   stage3: "Peel order",
   stage4: "Compile motion",
-  oracle: "Oracle clash check",
+  oracle: "Legacy ray check",
   naive: "Naive baseline",
 };
 

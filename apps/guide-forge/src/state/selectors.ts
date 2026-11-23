@@ -3,7 +3,8 @@
  *
  * No React, no DOM and no three import, so components and Node tests share one source of truth.
  * Every number and label comes from the oracle, naive and plan data in the `SolveResult`. Nothing
- * here infers "Verified" from `plan.status` alone (Requirement 9.4).
+ * here claims the guide is verified: the legacy ray clash count is a diagnostic, zero hits is not
+ * proof that a move is clear, and one checked move ("Check this move") does not verify the guide.
  */
 import type { NaiveBaselineResult } from "@unboltkit/core";
 import { STAGE_NAMES } from "../protocol";
@@ -15,8 +16,16 @@ import type { AppState, Mode } from "./types";
 // ---------------------------------------------------------------------------
 
 export interface ClashBadgeModel {
-  icon: "check" | "warn" | "interlock" | "none";
+  icon: "check" | "warn" | "interlock" | "unverified" | "none";
   text: string;
+}
+
+/** What Guide Forge says about the whole guide until a full check of every step has completed. */
+export const GUIDE_NOT_VERIFIED_TEXT = "Full guide not verified";
+
+/** `1 legacy ray hit`, `3 legacy ray hits`. */
+export function legacyRayHitsText(count: number): string {
+  return `${count} legacy ray ${count === 1 ? "hit" : "hits"}`;
 }
 
 export const BADGE_NO_PLAN_TEXT = "No plan loaded";
@@ -38,11 +47,11 @@ export function selectClashBadge(result: SolveResult | null, mode: Mode): ClashB
     return { icon: "interlock", text: BADGE_INTERLOCKED_TEXT };
   }
 
-  // Solved plan in DBG mode: the claim comes from the independent oracle report.
+  // Solved plan in DBG mode. No full-guide check has run, so the guide is not verified whatever the
+  // legacy ray count says. The count stays visible as a diagnostic.
   const oracle = result.oracle;
-  if (oracle === null) return { icon: "warn", text: "Not Verified" };
-  if (oracle.totalClashes === 0) return { icon: "check", text: "0 Clashes • Verified" };
-  return { icon: "warn", text: `${oracle.totalClashes} Clashes • Not Verified` };
+  if (oracle === null) return { icon: "unverified", text: GUIDE_NOT_VERIFIED_TEXT };
+  return { icon: "unverified", text: `${GUIDE_NOT_VERIFIED_TEXT} • ${legacyRayHitsText(oracle.totalClashes)}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -366,7 +375,7 @@ const STAGE_ACTIVITY: Readonly<Record<StageName, string>> = {
   stage2: "Stage 2: Building Swept-Ray DBG...",
   stage3: "Stage 3: Peeling removal order...",
   stage4: "Stage 4: Compiling motion primitives...",
-  oracle: "Oracle: Verifying clash-free removal...",
+  oracle: "Legacy ray check: Counting ray hits (diagnostic)...",
   naive: "Naive baseline: Counting radial-explode clashes...",
 };
 
@@ -433,10 +442,11 @@ export function formatStageMs(ms: number | null): string {
 export interface ComparisonModel {
   dbg: {
     label: string;
-    /** `oracle.totalClashes`. `null` when the plan has no oracle report. */
+    /** Legacy ray hits, `oracle.totalClashes`. `null` when the plan has no oracle report. */
     clashes: number | null;
-    verified: boolean;
-    /** For example `0 clashes (Verified)`. */
+    /** Always `unverified`: no full-guide check has completed. */
+    status: "unverified";
+    /** For example `0 legacy ray hits (full guide not verified)`. */
     text: string;
   };
   naive: {
@@ -457,27 +467,24 @@ function clashText(count: number): string {
 }
 
 /**
- * The two numbers the product claim rests on, side by side. Both come from the reports in the
- * `SolveResult`: the independent oracle for DBG and the naive baseline for the radial explode.
- * `Verified` is claimed only when an oracle report exists and counts zero clashes (Requirement 9.4).
- * `null` unless the plan is solved and a naive report exists.
+ * DBG next to the naive radial explode. Both numbers come from reports in the `SolveResult`: the
+ * legacy ray count for DBG, a diagnostic that never makes the guide verified, and the naive
+ * baseline for the radial explode. `null` unless the plan is solved and a naive report exists.
  */
 export function selectComparison(result: SolveResult | null): ComparisonModel | null {
   if (result === null || result.plan.status !== "solved" || result.naive === null) return null;
 
   const oracle = result.oracle;
   const dbgClashes = oracle === null ? null : oracle.totalClashes;
-  const verified = dbgClashes === 0;
+  const notVerified = GUIDE_NOT_VERIFIED_TEXT.toLowerCase();
   const dbgText =
-    dbgClashes === null
-      ? "Not Verified"
-      : `${clashText(dbgClashes)} (${verified ? "Verified" : "Not Verified"})`;
+    dbgClashes === null ? GUIDE_NOT_VERIFIED_TEXT : `${legacyRayHitsText(dbgClashes)} (${notVerified})`;
 
   const naive = result.naive;
   const obstructed = naive.perPart.filter((entry) => entry.clashCount > 0).length;
   const total = naive.perPart.length;
   return {
-    dbg: { label: "UnboltKit DBG", clashes: dbgClashes, verified, text: dbgText },
+    dbg: { label: "UnboltKit DBG", clashes: dbgClashes, status: "unverified", text: dbgText },
     naive: {
       label: "Naive Explode",
       clashes: naive.totalClashes,

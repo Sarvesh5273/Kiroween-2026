@@ -54,6 +54,9 @@ export function UploadButton(): ReactElement {
         <FileIcon className="gf-icon" />
         <span>Upload</span>
       </button>
+      <button type="button" className="gf-btn gf-example-btn" onClick={() => void solver.openRingExample()}>
+        Try the ring example
+      </button>
     </div>
   );
 }

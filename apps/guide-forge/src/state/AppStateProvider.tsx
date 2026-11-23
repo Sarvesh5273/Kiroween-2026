@@ -12,7 +12,7 @@
  *   (Requirement 11.8).
  *
  * Components read state through `useAppState`, change it only through `useAppDispatch` actions
- * (Requirement 4.7) and start solves through `useSolver`.
+ * (Requirement 4.7) and start solves and move checks through `useSolver`.
  */
 import {
   createContext,
@@ -27,7 +27,7 @@ import {
   type RefObject,
 } from "react";
 import { DEFAULT_KIT_NAME, type KitName } from "../kits";
-import type { SolveFailure, SolveLabel } from "../protocol";
+import type { MoveCheckRequest, SolveFailure, SolveLabel } from "../protocol";
 import { createSolverClient, type SolverClient } from "../solver/solverClient";
 import { importGltfFile } from "../upload/gltfImport";
 import { initialState, rootReducer } from "./reducer";
@@ -51,6 +51,9 @@ export interface SolverApi {
    * buffers transferred. Any other outcome raises a Recovery_Card and posts no Solve_Request.
    */
   solveFile(file: File): Promise<void>;
+  openRingExample(): Promise<void>;
+  /** Checks one move on the current solve's Parts in the Solver_Worker ("Check this move"). */
+  checkMove(move: MoveCheckRequest, key: string): void;
 }
 
 const StateContext = createContext<AppState | null>(null);
@@ -102,26 +105,43 @@ function makeSolverApi(
   clientRef: RefObject<SolverClient | null>,
   dispatch: Dispatch<AppAction>,
 ): SolverApi {
+  // An upload, example, or kit selected while a file is loading always wins.
+  let latestLoad = 0;
+  async function importSource(
+    load: number, owner: SolverClient, readFile: () => Promise<File>, label?: SolveLabel,
+  ): Promise<void> {
+    const current = () => latestLoad === load && clientRef.current === owner;
+    try {
+      const file = await readFile();
+      if (!current()) return;
+      const outcome = await importGltfFile(file);
+      if (!current()) return;
+      if (outcome.ok) owner.solve(outcome.source, label ?? outcome.label, outcome.transfer);
+      else dispatch({ type: "recovery/raised", card: outcome.card });
+    } catch (thrown) {
+      if (current()) dispatch({ type: "recovery/raised", card: buildFailureCard(failureFromThrown(thrown)) });
+    }
+  }
   return {
     solveKit(name) {
+      latestLoad++;
       clientRef.current?.solve({ kind: "kit", kitName: name }, kitLabel(name));
     },
     async solveFile(file) {
-      let outcome: Awaited<ReturnType<typeof importGltfFile>>;
-      try {
-        outcome = await importGltfFile(file);
-      } catch (thrown) {
-        // `importGltfFile` returns its expected failures as cards. Anything thrown is unexpected,
-        // and the user still gets a Recovery_Card.
-        dispatch({ type: "recovery/raised", card: buildFailureCard(failureFromThrown(thrown)) });
-        return;
-      }
-      if (!outcome.ok) {
-        dispatch({ type: "recovery/raised", card: outcome.card });
-        return;
-      }
-      // The provider may have unmounted while the file was parsed. Then there is no client.
-      clientRef.current?.solve(outcome.source, outcome.label, outcome.transfer);
+      const owner = clientRef.current;
+      if (owner) await importSource(++latestLoad, owner, async () => file);
+    },
+    async openRingExample() {
+      const owner = clientRef.current;
+      if (!owner) return;
+      await importSource(++latestLoad, owner, async () => {
+        const response = await fetch(new URL("../examples/removable-cap.glb", import.meta.url));
+        if (!response.ok) throw new Error("The ring example could not be loaded. Try opening the example again.");
+        return new File([await response.blob()], "removable-cap.glb");
+      }, { kind: "example", name: "service-ring" });
+    },
+    checkMove(move, key) {
+      clientRef.current?.checkMove(move, key);
     },
   };
 }
