@@ -1,0 +1,78 @@
+{
+  "timeToFirstUsableModelMs": {
+    "integral": 941,
+    "removable": 84
+  },
+  "outcomes": [
+    {
+      "label": "A integral cap",
+      "form": {
+        "part": "Service ring",
+        "direction": "+Y (up)",
+        "travel": "20"
+      },
+      "present": "Present at this step: Spindle, Service ring.",
+      "sawChecking": true,
+      "status": "blocked",
+      "headline": "Blocked by Spindle",
+      "text": "Blocked by Spindle The moving part would pass through Spindle. The first overlap found is at 1.81 model units of travel. Checked in 777 ms.",
+      "wallMs": 986,
+      "longestMainThreadTaskMs": 75
+    },
+    {
+      "label": "B removable cap, cap on",
+      "form": {
+        "part": "Service ring",
+        "direction": "+Y (up)",
+        "travel": "20"
+      },
+      "present": "Present at this step: Spindle, Service ring, Service cap.",
+      "sawChecking": true,
+      "status": "blocked",
+      "headline": "Blocked by Service cap",
+      "text": "Blocked by Service cap The moving part would pass through Service cap. The first overlap found is at 1.81 model units of travel. Checked in 3.0s.",
+      "wallMs": 3286,
+      "longestMainThreadTaskMs": 90
+    },
+    {
+      "label": "B removable cap, cap removed via step row",
+      "form": {
+        "part": "Service ring",
+        "direction": "+Y (up)",
+        "travel": "20"
+      },
+      "present": "Present at this step: Spindle, Service ring.",
+      "sawChecking": true,
+      "status": "clear",
+      "headline": "Clear",
+      "text": "Clear The moving part stays out of every present part over the whole travel. Only this move was checked. The full guide is not verified. Checked in 2.5s.",
+      "wallMs": 2589,
+      "longestMainThreadTaskMs": 0
+    }
+  ],
+  "newModelResetsForm": {
+    "form": {
+      "part": "Choose a part",
+      "direction": "",
+      "travel": ""
+    },
+    "headline": "Not checked"
+  },
+  "staleInBrowser": {
+    "afterEditWhileChecking": "ready",
+    "afterLateAnswer": "ready",
+    "afterRevert": "ready"
+  },
+  "idleLongestMainThreadTaskMs": 0,
+  "capRowNumber": "1",
+  "verdictAfterCapRemovedBeforeRecheck": "ready",
+  "claims": {
+    "calloutA": "Interlocked No valid removal sequence. 2 parts are locked.",
+    "badgeB": "Full guide not verified • 0 legacy ray hits",
+    "calloutB": "Full guide not verified Legacy ray check (diagnostic only): 0 legacy ray hits across 3 steps. Use Check this move to test one move against the parts present.",
+    "comparison": "UnboltKit DBG0 legacy ray hits (full guide not verified)vsNaive Explode1296 clashes (1/3 parts obstructed)"
+  },
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

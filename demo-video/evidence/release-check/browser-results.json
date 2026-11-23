@@ -1,0 +1,208 @@
+{
+  "success": true,
+  "errors": [],
+  "events": [
+    {
+      "id": "cancel-to-X",
+      "tMs": 7486,
+      "before": "0",
+      "cancelled": "CANCELLED: Service Cap +Y. The axis changed before the check finished. No score, no penalty.",
+      "after": {
+        "axis": "+X",
+        "score": "0",
+        "progress": "0 / 3",
+        "callout": "CANCELLED: Service Cap +Y. The axis changed before the check finished. No score, no penalty.",
+        "live": "",
+        "label": "removable-cap.glb"
+      },
+      "reply": {
+        "id": 1,
+        "type": "checkResult",
+        "verdict": "clear"
+      },
+      "counters": [
+        "Mistakes0",
+        "False alarms0"
+      ]
+    },
+    {
+      "id": "fresh-X",
+      "tMs": 10329,
+      "pre": {
+        "axis": "+Y",
+        "score": "0",
+        "progress": "0 / 3",
+        "callout": "CANCELLED: Service Cap +Y. The axis changed before the check finished. No score, no penalty.",
+        "live": "",
+        "label": "removable-cap.glb"
+      },
+      "xy": [
+        640,
+        339
+      ],
+      "post": {
+        "axis": "+Y",
+        "score": "100",
+        "progress": "1 / 3",
+        "callout": "CLEAR +Y: Service Cap removed (straight move checked)",
+        "live": "",
+        "label": "removable-cap.glb"
+      }
+    },
+    {
+      "id": "cancel-to-Auto",
+      "tMs": 15469,
+      "before": "0",
+      "cancelled": "CANCELLED: Service Cap +Y. The axis changed before the check finished. No score, no penalty.",
+      "after": {
+        "axis": "Auto · puzzle rules",
+        "score": "0",
+        "progress": "0 / 3",
+        "callout": "CANCELLED: Service Cap +Y. The axis changed before the check finished. No score, no penalty.",
+        "live": "",
+        "label": "removable-cap.glb"
+      },
+      "reply": {
+        "id": 3,
+        "type": "checkResult",
+        "verdict": "clear"
+      },
+      "counters": [
+        "Mistakes0",
+        "False alarms0"
+      ]
+    },
+    {
+      "id": "fresh-Auto",
+      "tMs": 18109,
+      "pre": {
+        "axis": "+Y",
+        "score": "0",
+        "progress": "0 / 3",
+        "callout": "CANCELLED: Service Cap +Y. The axis changed before the check finished. No score, no penalty.",
+        "live": "",
+        "label": "removable-cap.glb"
+      },
+      "xy": [
+        640,
+        339
+      ],
+      "post": {
+        "axis": "+Y",
+        "score": "100",
+        "progress": "1 / 3",
+        "callout": "CLEAR +Y: Service Cap removed (straight move checked)",
+        "live": "",
+        "label": "removable-cap.glb"
+      }
+    },
+    {
+      "id": "integral-blocked",
+      "tMs": 22336,
+      "pre": {
+        "axis": "+Y",
+        "score": "0",
+        "progress": "0 / 2",
+        "callout": "",
+        "live": "",
+        "label": "integral-cap.glb"
+      },
+      "xy": [
+        640,
+        420
+      ],
+      "post": {
+        "axis": "+Y",
+        "score": "0",
+        "progress": "0 / 2",
+        "callout": "BLOCKED BY: Spindle (checked +Y)",
+        "live": "",
+        "label": "integral-cap.glb"
+      }
+    },
+    {
+      "id": "cap-on-blocked",
+      "tMs": 29140,
+      "pre": {
+        "axis": "+Y",
+        "score": "0",
+        "progress": "0 / 3",
+        "callout": "",
+        "live": "",
+        "label": "removable-cap.glb"
+      },
+      "xy": [
+        640,
+        420
+      ],
+      "post": {
+        "axis": "+Y",
+        "score": "0",
+        "progress": "0 / 3",
+        "callout": "BLOCKED BY: Service Cap (checked +Y)",
+        "live": "",
+        "label": "removable-cap.glb"
+      }
+    },
+    {
+      "id": "remove-cap",
+      "tMs": 32533,
+      "pre": {
+        "axis": "+Y",
+        "score": "0",
+        "progress": "0 / 3",
+        "callout": "BLOCKED BY: Service Cap (checked +Y)",
+        "live": "",
+        "label": "removable-cap.glb"
+      },
+      "xy": [
+        640,
+        339
+      ],
+      "post": {
+        "axis": "+Y",
+        "score": "100",
+        "progress": "1 / 3",
+        "callout": "CLEAR +Y: Service Cap removed (straight move checked)",
+        "live": "",
+        "label": "removable-cap.glb"
+      }
+    },
+    {
+      "id": "remove-ring",
+      "tMs": 36505,
+      "pre": {
+        "axis": "+Y",
+        "score": "100",
+        "progress": "1 / 3",
+        "callout": "CLEAR +Y: Service Cap removed (straight move checked)",
+        "live": "",
+        "label": "removable-cap.glb"
+      },
+      "xy": [
+        640,
+        420
+      ],
+      "post": {
+        "axis": "+Y",
+        "score": "300",
+        "progress": "2 / 3",
+        "callout": "CLEAR +Y: Service Ring removed (straight move checked)",
+        "live": "",
+        "label": "removable-cap.glb"
+      }
+    },
+    {
+      "id": "shaft-still-visible",
+      "tMs": 38974,
+      "spindle": [
+        640,
+        420
+      ]
+    }
+  ],
+  "build": [
+    "blitz.worker-D2QbFxMC.js",
+    "index-DOlgqb8w.js"
+  ]
+}

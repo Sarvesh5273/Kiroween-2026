@@ -1,0 +1,69 @@
+{
+  "viewport": "1280x800",
+  "default": {
+    "height": 36,
+    "visible": 36,
+    "atTop": true,
+    "kit": "Mechanical Keyboard 65%",
+    "part": "Choose a part",
+    "dir": null,
+    "travel": "",
+    "enabled": false,
+    "headline": "Not checked",
+    "headerOverflow": false,
+    "headerGap": 10
+  },
+  "example": {
+    "height": 36,
+    "visible": 36,
+    "atTop": true,
+    "kit": "Service ring example",
+    "part": "Service ring",
+    "dir": "+Y (up)",
+    "travel": "20",
+    "enabled": true,
+    "headline": "Not checked",
+    "headerOverflow": false,
+    "headerGap": 10
+  },
+  "blocked": {
+    "height": 36,
+    "visible": 36,
+    "atTop": true,
+    "kit": "Service ring example",
+    "part": "Service ring",
+    "dir": "+Y (up)",
+    "travel": "20",
+    "enabled": true,
+    "headline": "Blocked by Service cap",
+    "headerOverflow": false,
+    "headerGap": 10
+  },
+  "clear": {
+    "height": 36,
+    "visible": 36,
+    "atTop": true,
+    "kit": "Service ring example",
+    "part": "Service ring",
+    "dir": "+Y (up)",
+    "travel": "20",
+    "enabled": true,
+    "headline": "Clear",
+    "headerOverflow": false,
+    "headerGap": 10
+  },
+  "upload": {
+    "height": 36,
+    "visible": 36,
+    "atTop": true,
+    "kit": "Uploaded: removable-cap.glb",
+    "part": "Choose a part",
+    "dir": null,
+    "travel": "",
+    "enabled": false,
+    "headline": "Not checked",
+    "headerOverflow": false,
+    "headerGap": 10
+  },
+  "pageErrors": []
+}

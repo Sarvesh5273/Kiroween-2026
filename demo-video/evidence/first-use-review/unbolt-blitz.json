@@ -1,0 +1,23 @@
+{
+  "app": "unbolt-blitz",
+  "viewport": "1280x800",
+  "buttons": [
+    "Stage 1 · Haunted Clockwork Lockbox ▾",
+    "Campaign (0/15 ★)★ 0/15",
+    "",
+    "♪Sound (M)",
+    "Auto · puzzle rules",
+    "+X",
+    "−X",
+    "+Y",
+    "−Y",
+    "+Z",
+    "−Z",
+    "Hint (H)",
+    "Flag Interlock Trap"
+  ],
+  "startText": "Stage 1\n·\nHaunted Clockwork Lockbox\n▾\nCAMPAIGN (0/15 ★)\n★ 0/15\n♪\nSOUND (M)\nTRY ALONG\nAUTO · PUZZLE RULES\n+X\n−X\n+Y\n−Y\n+Z\n−Z\n\nTIME\n\n0:01.1\n\nSCORE\n\n0\nx1\n\nREMOVED\n\n0 / 13\n\nMISTAKES\n\n0\n\nFALSE ALARMS\n\n0\nHINT (H)\nFLAG INTERLOCK TRAP",
+  "parts": "13",
+  "visibleHint": 1,
+  "afterHint": "Stage 1\n·\nHaunted Clockwork Lockbox\n▾\nCAMPAIGN (0/15 ★)\n★ 0/15\n♪\nSOUND (M)\nTRY ALONG\nAUTO · PUZZLE RULES\n+X\n−X\n+Y\n−Y\n+Z\n−Z\n\nTIME\n\n0:01.2\n\nSCORE\n\n0\nx1\n\nREMOVED\n\n0 / 13\n\nMISTAKES\n\n0\n\nFALSE ALARMS\n\n0\n\nHINT: Unbolt Lid Fastener 1. It slides up.\n\nHints used this run: 1. Each hint costs the 3-star rating.\n\nHINT (H)\n1\nFLAG INTERLOCK TRAP"
+}

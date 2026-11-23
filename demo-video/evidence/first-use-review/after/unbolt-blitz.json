@@ -1,0 +1,28 @@
+{
+  "viewport": "1280x800",
+  "initial": {
+    "progress": "0",
+    "total": "13",
+    "score": "0",
+    "paidHints": "0"
+  },
+  "firstMove": {
+    "progress": "1",
+    "total": "13",
+    "score": "150",
+    "paidHints": "0",
+    "hit": {
+      "name": "Lid Fastener 1",
+      "x": 648,
+      "y": 385
+    }
+  },
+  "optionalHint": {
+    "progress": "0",
+    "total": "13",
+    "score": "0",
+    "paidHints": "1"
+  },
+  "notShownAgain": true,
+  "pageErrors": []
+}
